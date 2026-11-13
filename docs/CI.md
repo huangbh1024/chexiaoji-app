@@ -4,22 +4,28 @@
 
 ## 触发
 
-- push / pull_request：修改 `lib/`、`test/`、`android/`、`ios/`、`pubspec.*` 或工作流本身
-- workflow_dispatch：Actions 页面手动运行
+| 事件 | 行为 |
+| --- | --- |
+| PR → `main` | 只跑检查：`pub get` / `analyze` / `test`，**不打包** |
+| push → `main`（PR 合并后） | 跑检查 + 构建 release arm64 APK + 上传 Artifact |
+| workflow_dispatch | 手动触发，行为同 push main |
+
+功能分支直接 push 不会触发 CI；先开 PR 到 `main`，合并后才会出 APK。
+分支与合并规范见 [CONTRIBUTING.md](../CONTRIBUTING.md)。
 
 ## 流程
 
 1. Java 21 + Flutter 3.50.0 stable
 2. 安装 Android SDK `platforms;android-36`、`build-tools;36.0.0`
 3. `flutter pub get` → `flutter analyze` → `flutter test`（有测试时）
-4. `flutter build apk --release --target-platform android-arm64`
-5. 上传 APK Artifact，保留 7 天
+4. 仅 main / 手动触发：`flutter build apk --release --target-platform android-arm64`
+5. 仅 main / 手动触发：上传 APK Artifact，保留 7 天
 
 下载：Actions → 某次运行 → 页面底部 **Artifacts**。
 
 ## 费用
 
-- 公开仓库：标准 `ubuntu-latest` runner 免费，Android 打包无额外费用。
+- 公开仓库：标准 `ubuntu-24.04` runner 免费，Android 打包无额外费用。
 - 私有仓库：Free 计划每月 $12 计算额度；Linux 2-core 约 $0.006/分钟；Artifact 500 MB、缓存 10 GB。macOS runner 约 $0.062/分钟。
 - 建议在 Settings → Billing 设置 spending limit，避免意外账单。
 
@@ -44,7 +50,11 @@ Ubuntu runner 不能打 iOS。需要另加 `macos-latest` 工作流：
 ```yaml
 runs-on: macos-latest
 steps:
-  - uses: actions/checkout@v4
+  - uses: actions/checkout@v7
+  - uses: actions/setup-java@v6
+    with:
+      distribution: temurin
+      java-version: '21'
   - uses: subosito/flutter-action@v2
     with:
       flutter-version: '3.50.0'
@@ -55,9 +65,4 @@ steps:
 ## 本地 Docker 构建（可选）
 
 如果需要在本地/离线出包，参考 `deploy/flutter-builder/README.md`。
-只用 CI 时不需要本地镜像，可以删除镜像和缓存卷释放磁盘：
-
-```bash
-docker rmi cxj-flutter-builder:3.50.0
-docker volume rm cxj-flutter-pub-cache cxj-flutter-gradle-cache cxj-flutter-android-sdk
-```
+当前本地镜像已删除；仅用 CI 时不需要它。

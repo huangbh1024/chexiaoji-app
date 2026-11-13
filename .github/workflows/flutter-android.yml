@@ -1,24 +1,15 @@
 name: Flutter Android
 
+# 规则：
+# - PR 只做检查（analyze / test），不打包；
+# - PR 合并进 main（push main）后才构建 release APK 并上传 Artifact；
+# - 也可以在 Actions 页面手动触发构建。
+
 on:
-  push:
-    paths:
-      - 'lib/**'
-      - 'test/**'
-      - 'android/**'
-      - 'ios/**'
-      - 'pubspec.yaml'
-      - 'pubspec.lock'
-      - '.github/workflows/flutter-android.yml'
   pull_request:
-    paths:
-      - 'lib/**'
-      - 'test/**'
-      - 'android/**'
-      - 'ios/**'
-      - 'pubspec.yaml'
-      - 'pubspec.lock'
-      - '.github/workflows/flutter-android.yml'
+    branches: [main]
+  push:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -29,9 +20,11 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build-android:
+  verify:
+    name: verify
     # GitHub 托管 runner 在国外，访问 Flutter/Google/Maven 官方源不需要国内镜像
     runs-on: ubuntu-24.04
+    timeout-minutes: 30
 
     steps:
       - uses: actions/checkout@v7
@@ -64,7 +57,19 @@ jobs:
           yes | "$SDKMANAGER" --licenses >/dev/null || true
           "$SDKMANAGER" "platforms;android-36" "build-tools;36.0.0"
 
+      - name: Pub get
+        run: flutter pub get
+
+      - name: Analyze
+        run: flutter analyze
+
+      - name: Test
+        if: hashFiles('test/**') != ''
+        run: flutter test
+
+      # ---------- 以下只在合并进 main 或手动触发时执行 ----------
       - name: Prepare signing (optional)
+        if: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch' }}
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
@@ -83,20 +88,12 @@ jobs:
           storeFile=upload-keystore.jks
           EOF
 
-      - name: Pub get
-        run: flutter pub get
-
-      - name: Analyze
-        run: flutter analyze
-
-      - name: Test
-        if: hashFiles('test/**') != ''
-        run: flutter test
-
       - name: Build release APK (arm64)
+        if: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch' }}
         run: flutter build apk --release --target-platform android-arm64
 
       - name: Upload APK
+        if: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch' }}
         uses: actions/upload-artifact@v7
         with:
           name: chexiaoji-app-android-${{ github.run_number }}-${{ github.sha }}
