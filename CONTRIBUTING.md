@@ -32,6 +32,9 @@ gh pr create --base main --head feat/your-feature --fill
 
 - **PR 阶段**：只运行 `flutter pub get`、`flutter analyze`、`flutter test`，**不打包**。
 - **合并进 `main` 后**：自动运行完整检查，并构建 `release` arm64 APK，上传到 Actions Artifact。
+- **只改文档时**：合并进 `main` 若只涉及 `**.md`、`docs/**`、`LICENSE`、`.gitignore`、
+  `.idea/**`、`.vscode/**` 等非代码文件，**不会触发**工作流，也不产出 APK；
+  需要出包时在 Actions 页面手动 `Run workflow`。详见 [docs/CI.md](docs/CI.md)。
 - **手动触发**：Actions 页面 `Run workflow` 也会执行打包。
 
 也就是说：**只有 PR 合并进主分支后才产出 APK**。

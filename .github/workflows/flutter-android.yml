@@ -3,13 +3,26 @@ name: Flutter Android
 # 规则：
 # - PR 只做检查（analyze / test），不打包；
 # - PR 合并进 main（push main）后才构建 release APK 并上传 Artifact；
+# - 只改文档/编辑器配置等非代码文件时，合入 main 不触发构建（paths-ignore）；
 # - 也可以在 Actions 页面手动触发构建。
+#
+# 注意：paths-ignore 只加在 push 上。PR 必须始终跑 verify，因为 main 分支保护
+# 把 verify 设为必需检查；若 PR 也被过滤，文档类 PR 会一直等不到该检查而无法合并。
 
 on:
   pull_request:
     branches: [main]
   push:
     branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - 'LICENSE'
+      - '.gitignore'
+      - '.gitattributes'
+      - '.editorconfig'
+      - '.idea/**'
+      - '.vscode/**'
   workflow_dispatch:
 
 permissions:
