@@ -10,6 +10,7 @@
 | 深色模式参考 | [Stitch · 首页（深色）](https://stitch.google.com/projects/9615374848161425677?node-id=ecb73ad69f044a6d8625693577446d83)（基于上一版，待随新版同步） |
 | 设计系统 | Lumina Velocity（Plus Jakarta Sans、翡翠绿主色、全圆角、柔和阴影） |
 | 关联页面 | 记账页、车辆管理 / 添加车辆、统计页、我的、登录注册 |
+| 技术方案 | [docs/technical/home-dashboard.md](../technical/home-dashboard.md) |
 | 状态 | 待评审，接口契约未确认 |
 
 **v0.2 相对 v0.1 的变更**
