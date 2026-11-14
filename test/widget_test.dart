@@ -86,14 +86,15 @@ void main() {
   testWidgets('充电记录副指标显示充电单价', (tester) async {
     await _pumpHome(tester);
 
+    final charging = find.textContaining('充电 · ').first;
     await tester.dragUntilVisible(
-      find.text('充电 · 特来电科技园站'),
+      charging,
       find.byType(CustomScrollView),
       const Offset(0, -220),
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('¥1.20/kWh'), findsOneWidget);
+    expect(find.textContaining('/kWh'), findsWidgets);
     expect(find.text('¥0.17/km'), findsNothing);
   });
 

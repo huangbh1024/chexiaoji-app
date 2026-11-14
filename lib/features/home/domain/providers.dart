@@ -1,13 +1,14 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../../ledger/domain/providers.dart';
 import '../data/home_repository.dart';
 import '../data/mock_home_repository.dart';
 import 'home_models.dart';
 
 /// 静态阶段使用本地 Mock；接入接口时只需替换这里的实现。
 final homeRepositoryProvider = Provider<HomeRepository>(
-  (ref) => MockHomeRepository(),
+  (ref) => MockHomeRepository(ledger: ref.watch(ledgerRepositoryProvider)),
 );
 
 final vehiclesProvider = FutureProvider<List<Vehicle>>((ref) {
