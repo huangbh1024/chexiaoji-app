@@ -107,4 +107,49 @@ void main() {
     expect(fab.dx - ledger.dx, closeTo(81, 3));
     expect(stats.dx - fab.dx, closeTo(81, 3));
   });
+
+  testWidgets('账单页展示月度汇总、筛选与流水', (tester) async {
+    await _pumpHome(tester);
+
+    await tester.tap(find.text('账单'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('账单明细'), findsOneWidget);
+    expect(find.text('能源电油'), findsOneWidget);
+    expect(find.text('维保服务'), findsOneWidget);
+    expect(find.text('日均开支'), findsOneWidget);
+    expect(find.textContaining('全部车辆'), findsOneWidget);
+    expect(find.text('全部类型'), findsOneWidget);
+    expect(find.textContaining('共 '), findsWidgets);
+  });
+
+  testWidgets('账单页分类筛选展示结果提示条并可清除', (tester) async {
+    await _pumpHome(tester);
+
+    await tester.tap(find.text('账单'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('保养'));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('已筛选：保养'), findsOneWidget);
+
+    await tester.tap(find.text('清除'));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('已筛选：保养'), findsNothing);
+  });
+
+  testWidgets('账单页可打开月份选择器', (tester) async {
+    await _pumpHome(tester);
+
+    await tester.tap(find.text('账单'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.expand_more_rounded));
+    await tester.pumpAndSettle();
+
+    expect(find.text('选择月份'), findsOneWidget);
+    expect(find.text('确定'), findsOneWidget);
+  });
 }

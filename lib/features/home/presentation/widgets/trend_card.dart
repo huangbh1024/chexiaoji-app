@@ -9,7 +9,8 @@ import '../../../../app/theme/app_typography.dart';
 import '../../../../core/format/formatters.dart';
 import '../../domain/home_models.dart';
 import '../../domain/providers.dart';
-import 'home_card.dart';
+import '../../../../core/widgets/app_card.dart';
+import '../../../../core/widgets/skeleton_box.dart';
 
 class TrendCard extends ConsumerWidget {
   const TrendCard({super.key});
@@ -23,7 +24,7 @@ class TrendCard extends ConsumerWidget {
       trendProvider((vehicleId: vehicleId, range: range)),
     );
 
-    return HomeCard(
+    return AppCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

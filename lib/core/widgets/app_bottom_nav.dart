@@ -2,12 +2,15 @@ import 'dart:ui';
 
 import 'package:material_ui/material_ui.dart';
 
-import '../../../../app/theme/app_colors.dart';
-import '../../../../app/theme/app_tokens.dart';
-import '../../../../app/theme/app_typography.dart';
+import '../../app/theme/app_colors.dart';
+import '../../app/theme/app_tokens.dart';
+import '../../app/theme/app_typography.dart';
 
-class HomeBottomNav extends StatelessWidget {
-  const HomeBottomNav({
+/// 全局底部导航：4 个 Tab + 中央悬浮记账 FAB。
+///
+/// 由 `AppTabShell` 持有，首页与账单页共用。
+class AppBottomNav extends StatelessWidget {
+  const AppBottomNav({
     super.key,
     required this.selectedIndex,
     required this.onTap,

@@ -7,7 +7,10 @@ import '../../../../core/format/formatters.dart';
 import '../../domain/home_models.dart';
 import '../../domain/providers.dart';
 import '../home_style.dart';
-import 'home_card.dart';
+import '../../../../core/widgets/app_card.dart';
+import '../../../../core/widgets/empty_state.dart';
+import '../../../../core/widgets/section_error.dart';
+import '../../../../core/widgets/skeleton_box.dart';
 
 class RecentRecords extends ConsumerWidget {
   const RecentRecords({super.key});
@@ -72,7 +75,7 @@ class RecentRecords extends ConsumerWidget {
                   actionLabel: '记一笔',
                   onAction: () => _toast(context, '记账页待接入'),
                 )
-              : HomeCard(
+              : AppCard(
                   padding: const EdgeInsets.all(8),
                   child: Column(
                     children: [
@@ -208,7 +211,7 @@ class _RecordsSkeleton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return HomeCard(
+    return AppCard(
       padding: const EdgeInsets.all(8),
       child: Column(
         children: [

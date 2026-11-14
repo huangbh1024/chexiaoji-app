@@ -1,9 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 
+import 'tab_shell.dart';
 import 'theme/app_theme.dart';
 import '../features/home/domain/providers.dart';
-import '../features/home/presentation/home_page.dart';
 
 class CheXiaoJiApp extends ConsumerWidget {
   const CheXiaoJiApp({super.key});
@@ -18,7 +18,7 @@ class CheXiaoJiApp extends ConsumerWidget {
       darkTheme: AppTheme.dark(),
       themeMode: themeMode,
       themeAnimationDuration: const Duration(milliseconds: 250),
-      home: const HomePage(),
+      home: const AppTabShell(),
     );
   }
 }
