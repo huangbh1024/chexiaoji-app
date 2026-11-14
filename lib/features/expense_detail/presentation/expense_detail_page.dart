@@ -12,6 +12,8 @@ import '../../../core/widgets/blurred_header_delegate.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/section_error.dart';
 import '../../../core/widgets/skeleton_box.dart';
+import '../../expense_entry/domain/expense_entry_models.dart';
+import '../../expense_entry/presentation/expense_entry_routes.dart';
 import '../../ledger/domain/ledger_models.dart';
 import '../data/expense_detail_repository.dart';
 import '../domain/expense_detail_models.dart';
@@ -161,14 +163,47 @@ class ExpenseDetailPage extends ConsumerWidget {
               ),
               DetailBottomBar(
                 enabled: detail != null,
-                onReAdd: () => _toast(context, '记账页待接入'),
-                onEdit: () => _toast(context, '记账页待接入'),
+                onReAdd: detail == null
+                    ? null
+                    : () => _reAddExpense(context, detail),
+                onEdit: detail == null
+                    ? null
+                    : () => _editExpense(context, ref, detail),
               ),
             ],
           ),
         ),
       ),
     );
+  }
+
+  Future<void> _reAddExpense(
+    BuildContext context,
+    ExpenseDetail detail,
+  ) async {
+    await openExpenseEntry(
+      context,
+      args: ExpenseEntryArgs.create(
+        initialVehicleId: detail.record.vehicleId,
+        initialCategory: detail.record.category,
+        initialOccurredAt: DateTime.now(),
+        initialPlace: detail.record.title,
+      ),
+    );
+  }
+
+  Future<void> _editExpense(
+    BuildContext context,
+    WidgetRef ref,
+    ExpenseDetail detail,
+  ) async {
+    final result = await openExpenseEntry(
+      context,
+      args: ExpenseEntryArgs.edit(recordId: detail.record.id),
+    );
+    if (result is ExpenseEntrySaved && context.mounted) {
+      ref.invalidate(expenseDetailProvider(recordId));
+    }
   }
 
   Future<void> _share(BuildContext context, ExpenseDetail detail) async {

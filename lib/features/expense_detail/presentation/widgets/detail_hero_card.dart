@@ -4,7 +4,6 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_typography.dart';
-import '../../../../core/domain/enums.dart';
 import '../../../../core/format/formatters.dart';
 import '../../../../core/presentation/category_style.dart';
 import '../../../../core/widgets/app_card.dart';

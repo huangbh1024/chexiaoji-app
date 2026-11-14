@@ -8,7 +8,10 @@ import 'home_models.dart';
 
 /// 静态阶段使用本地 Mock；接入接口时只需替换这里的实现。
 final homeRepositoryProvider = Provider<HomeRepository>(
-  (ref) => MockHomeRepository(ledger: ref.watch(ledgerRepositoryProvider)),
+  (ref) => MockHomeRepository(
+    ledger: ref.watch(ledgerRepositoryProvider),
+    odometerResolver: ref.watch(mockLedgerRepositoryProvider).latestOdometer,
+  ),
 );
 
 final vehiclesProvider = FutureProvider<List<Vehicle>>((ref) {

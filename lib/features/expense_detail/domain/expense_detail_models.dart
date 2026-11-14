@@ -1,12 +1,12 @@
 import 'package:material_ui/material_ui.dart';
 
+import '../../../core/domain/enums.dart';
 import '../../ledger/domain/ledger_models.dart';
+
+export '../../../core/domain/enums.dart';
 
 /// 单笔开销的状态。
 enum ExpenseStatus { completed, refunded }
-
-/// 支付渠道。颜色映射放在 presenter，避免模型依赖 UI。
-enum PaymentChannel { wechat, alipay, unionpay, etc, cash, card, other }
 
 /// 详情页关闭时回传给账单页的结果。
 enum ExpenseDetailOutcome { updated, deleted }

@@ -3,6 +3,9 @@ import 'package:material_ui/material_ui.dart';
 
 import '../app/theme/app_colors.dart';
 import '../core/widgets/app_bottom_nav.dart';
+import '../features/expense_entry/domain/expense_entry_models.dart';
+import '../features/expense_entry/presentation/expense_entry_routes.dart';
+import '../features/home/domain/providers.dart';
 import '../features/home/presentation/home_page.dart';
 import '../features/ledger/presentation/ledger_page.dart';
 import '../features/profile/presentation/profile_page.dart';
@@ -58,17 +61,12 @@ class _AppTabShellState extends ConsumerState<AppTabShell> {
     );
   }
 
-  void _toast(String message) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(message),
-          behavior: SnackBarBehavior.floating,
-          margin: const EdgeInsets.fromLTRB(16, 0, 16, 96),
-          duration: const Duration(seconds: 2),
-        ),
-      );
+  Future<void> _openExpenseEntry() async {
+    final vehicleId = ref.read(selectedVehicleIdProvider);
+    await openExpenseEntry(
+      context,
+      args: ExpenseEntryArgs.create(initialVehicleId: vehicleId),
+    );
   }
 
   @override
@@ -116,7 +114,7 @@ class _AppTabShellState extends ConsumerState<AppTabShell> {
                 child: AppBottomNav(
                   selectedIndex: current.index,
                   onTap: _onTabSelected,
-                  onFab: () => _toast('记账页待接入'),
+                  onFab: _openExpenseEntry,
                 ),
               ),
             ),

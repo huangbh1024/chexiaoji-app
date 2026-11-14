@@ -5,6 +5,8 @@ import '../../../core/format/formatters.dart';
 import '../../../core/presentation/category_style.dart';
 import 'expense_detail_models.dart';
 
+export '../../../core/presentation/payment_style.dart';
+
 extension ExpenseDetailPresentation on ExpenseDetail {
   String get heroAmountText => formatSignedYuan(record.amountCents);
 
@@ -54,18 +56,6 @@ extension ExpenseStatusVisual on ExpenseStatus {
   Color color(AppPalette palette) => switch (this) {
     ExpenseStatus.completed => palette.primary,
     ExpenseStatus.refunded => palette.pink,
-  };
-}
-
-extension PaymentChannelVisual on PaymentChannel {
-  Color color(AppPalette palette) => switch (this) {
-    PaymentChannel.wechat => palette.primary,
-    PaymentChannel.alipay => palette.tertiary,
-    PaymentChannel.unionpay => palette.secondary,
-    PaymentChannel.etc => palette.violet,
-    PaymentChannel.cash => palette.outline,
-    PaymentChannel.card => palette.tertiary,
-    PaymentChannel.other => palette.outline,
   };
 }
 

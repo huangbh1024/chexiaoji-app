@@ -2,14 +2,14 @@
 
 | 项目 | 内容 |
 | --- | --- |
-| 关联需求 | [记账页需求文档 v0.1](../requirements/expense-entry.md) |
+| 关联需求 | [记账页需求文档 v0.2](../requirements/expense-entry.md) |
 | 设计稿 | [Stitch · 记账·全能开销录入页（全新浅色规范版）](https://stitch.google.com/projects/9615374848161425677?node-id=d0f29ca3b8e848b38e8a77ff08c268aa) |
 | 客户端 | Flutter 3.50.0 stable / Dart 3.14 |
 | 平台 | Android（arm64 优先）、iOS |
-| 文档版本 | v0.1（草案，未实施） |
-| 状态 | 待评审；接口未定，先按 Mock 实现，视觉与交互可按本文档拆分排期 |
+| 文档版本 | v0.2（M0–M4 已实施，M5 部分完成） |
+| 状态 | P0 已实施；接口未定，继续使用 Mock；OCR / 离线草稿为 P1 |
 
-> 本文档基于**仓库当前已有实现**编写：首页、账单、统计、我的、单笔详情、月度报表均已落地（Riverpod 3 + `material_ui` + `fl_chart` + `intl`），全局 FAB 仍是 Toast「记账页待接入」。所有新增目录、文件与改造均为拟实施内容，按 `feat/expense-entry` 分支推进。
+> 本文档基于**仓库当前实现**编写：首页、账单、统计、我的、单笔详情、月度报表均已落地（Riverpod 3 + `material_ui` + `fl_chart` + `intl`）；记账页 P0 已按本文档实现，全局 FAB 与详情底部按钮已接线。接口未定，仓库内使用 Mock 仓库。
 >
 > 设计稿的静态状态存在自相矛盾（选中「充电」却渲染「加油明细」；车辆卡 42,150 km 与里程卡 18,375 → 18,426 不是同一辆车）。本文档以需求文档 §7 的口径为准，示例数据仅作视觉参考。
 
@@ -1800,8 +1800,73 @@ Future<void> _handleSave() async {
 
 ---
 
-## 16. 变更记录
+## 16. 实施记录（v0.2）
+
+### 16.1 实际落地的文件
+
+```
+lib/core/
+├── domain/enums.dart                       # 新增 PaymentChannel
+├── domain/vehicle.dart                     # 电池容量 / 油箱容量 / 默认油品
+├── format/formatters.dart                  # parseYuanToCents / formatYuanInput / formatOdometerDelta / formatOccurredAtLabel
+└── presentation/payment_style.dart         # 支付渠道文案与圆点色（详情页共用）
+
+lib/features/expense_entry/
+├── data/
+│   ├── expense_entry_repository.dart
+│   ├── mock_expense_entry_repository.dart  # 写回 MockLedgerRepository + 会话内凭证
+│   └── receipt_picker.dart                 # image_picker 封装与异常
+├── domain/
+│   ├── expense_entry_detail.dart           # sealed 分类参数
+│   ├── expense_entry_models.dart           # Args / Draft / Defaults / Baseline / Preset / Result
+│   ├── expense_entry_math.dart
+│   ├── expense_entry_validation.dart
+│   ├── expense_entry_presenter.dart
+│   └── providers.dart                      # controller + repository + picker
+└── presentation/
+    ├── expense_entry_page.dart
+    ├── expense_entry_routes.dart
+    ├── expense_entry_style.dart
+    └── widgets/                            # header / vehicle card+sheet / category / amount / telemetry
+                                            # params（7 类合并）/ mileage / meta+sheets / note+receipts / bottom
+```
+
+改造文件：
+
+- `lib/app/tab_shell.dart`：FAB 打开记账页。
+- `lib/features/expense_detail/presentation/expense_detail_page.dart`：底部「再记一笔 / 编辑此笔账单」打开记账页，编辑保存后失效详情。
+- `lib/features/ledger/data/mock_ledger_repository.dart`：手动记录、按 id 覆盖、最新里程、按时间回溯基线。
+- `lib/features/home/data/mock_home_repository.dart` 与 `home/domain/providers.dart`：`odometerResolver`，保存后车辆卡里程同步。
+- `lib/features/expense_detail/domain/expense_detail_models.dart` / `expense_detail_presenter.dart`：`PaymentChannel` 迁到 core，支付样式复用。
+- `pubspec.yaml`：新增 `image_picker`；iOS / Android 相机与相册权限。
+
+### 16.2 与方案的差异
+
+| 项 | 实际处理 |
+| --- | --- |
+| Widget 文件拆分 | 为控制文件数量，金额卡合并输入与快捷金额，7 个参数卡合并到 `entry_params_card.dart`，时间/地点/支付浮层合并到 `entry_meta_card.dart`，未改变模块边界 |
+| 凭证 | 使用 `image_picker` 拍照 / 相册，保存时上传；Mock 用本地路径作为 `remoteId`，并在会话内保存凭证，编辑可读回 |
+| 默认值 | Mock 返回固定单价 1.20 / 7.85 / 8.00 与车辆容量；接口接入后由服务端返回 |
+| 里程基线 | Mock 按 24 个月回溯并排除自身；真实接口按 §8.2 实现 |
+| 首次记录 | Mock 总会生成历史数据，UI 上的「首次记录」路径仅由领域逻辑覆盖，需接口联调后回归 |
+| 校验反馈 | 已做字段内错误与 Toast 首错；自动滚动到首错字段未实现（P1） |
+| OCR | 仍为占位 Toast，识别与确认浮层未实现 |
+| 无障碍 | 关键按钮、分类胶囊、错误文案已有语义；真机 TalkBack / 1.3 倍字号尚未系统验收 |
+| 深色 | 全部走 `AppPalette`，基础可用；正式深色稿核对未做 |
+
+### 16.3 测试
+
+- `test/expense_entry/expense_entry_domain_test.dart`：金额解析、推导公式、校验、默认参数、Draft 值相等。
+- `test/expense_entry/mock_expense_entry_repository_test.dart`：默认值、基线、创建 / 编辑写回账单与车辆里程、凭证上传。
+- `test/expense_entry/expense_entry_page_test.dart`：首屏、金额与预估、分类切换、里程倒挂、未保存关闭、保存返回、凭证添加、编辑预填。
+- `test/widget_test.dart`：FAB 打开记账页、真实 Mock 保存后回到首页。
+- `flutter analyze` 无问题；`flutter test` 210 项通过。
+
+---
+
+## 17. 变更记录
 
 | 版本 | 日期 | 说明 |
 | --- | --- | --- |
+| v0.2 | 2026-11-15 | P0 实施：新增 `expense_entry` feature、Mock 仓库扩展、FAB / 详情入口、凭证选择、测试；补充实施记录与差异说明 |
 | v0.1 | 2026-11-15 | 初稿：基于 Stitch「记账·全能开销录入页（全新浅色规范版）」设计页面结构、7 分类参数、金额主输入、里程基线、保存 / 编辑闭环、Mock 扩展与测试方案 |

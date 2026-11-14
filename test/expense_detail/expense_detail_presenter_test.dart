@@ -1,4 +1,3 @@
-import 'package:chexiaoji_app/core/domain/enums.dart';
 import 'package:chexiaoji_app/features/expense_detail/domain/expense_detail_models.dart';
 import 'package:chexiaoji_app/features/expense_detail/domain/expense_detail_presenter.dart';
 import 'package:flutter_test/flutter_test.dart';
