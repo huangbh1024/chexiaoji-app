@@ -137,7 +137,10 @@ class ExpenseDetailPage extends ConsumerWidget {
                                       : null,
                                 ),
                                 const SizedBox(height: 12),
-                                DetailSettlementCard(detail: detail),
+                                DetailSettlementCard(
+                                  detail: detail,
+                                  isSyncing: asyncDetail.isLoading,
+                                ),
                                 const SizedBox(height: 12),
                                 DetailTagsNoteCard(
                                   detail: detail,

@@ -3,15 +3,21 @@ import 'package:material_ui/material_ui.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_typography.dart';
 import '../../../../core/widgets/app_card.dart';
+import '../../../../core/widgets/skeleton_box.dart';
 import '../../domain/expense_detail_models.dart';
 import '../../domain/expense_detail_presenter.dart';
 import '../expense_detail_style.dart';
 
 /// 结算明细卡：分类、支付渠道、交易时间、实付金额。
 class DetailSettlementCard extends StatelessWidget {
-  const DetailSettlementCard({super.key, required this.detail});
+  const DetailSettlementCard({
+    super.key,
+    required this.detail,
+    this.isSyncing = false,
+  });
 
   final ExpenseDetail detail;
+  final bool isSyncing;
 
   @override
   Widget build(BuildContext context) {
@@ -61,7 +67,10 @@ class DetailSettlementCard extends StatelessWidget {
           ),
           _SettlementRow(
             label: '支付渠道',
-            value: _PaymentValue(payment: detail.payment),
+            value: _PaymentValue(
+              payment: detail.payment,
+              isSyncing: isSyncing,
+            ),
           ),
           _SettlementRow(
             label: '交易时间',
@@ -145,14 +154,18 @@ class _SettlementRow extends StatelessWidget {
 }
 
 class _PaymentValue extends StatelessWidget {
-  const _PaymentValue({required this.payment});
+  const _PaymentValue({required this.payment, this.isSyncing = false});
 
   final ExpensePayment? payment;
+  final bool isSyncing;
 
   @override
   Widget build(BuildContext context) {
     final palette = context.palette;
     final payment = this.payment;
+    if (payment == null && isSyncing) {
+      return const SkeletonBox(width: 88, height: 12, radius: 6);
+    }
     if (payment == null || payment.label.trim().isEmpty) {
       return Text(
         '未记录',
