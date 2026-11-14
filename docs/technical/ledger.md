@@ -3,6 +3,7 @@
 | 项目 | 内容 |
 | --- | --- |
 | 关联需求 | [账单页需求文档 v0.2](../requirements/ledger.md) |
+| 关联方案 | [记账页技术方案](expense-entry.md)（FAB 入口与保存后刷新） |
 | 设计稿 | [Stitch · 账单·明细与流水记录](https://stitch.google.com/projects/9615374848161425677?node-id=509df27d171c476ea2901ab6dbae2636) |
 | 客户端 | Flutter 3.50.0 stable / Dart 3.14 |
 | 平台 | Android（arm64 优先）、iOS |
