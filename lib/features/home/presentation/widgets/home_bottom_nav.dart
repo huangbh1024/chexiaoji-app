@@ -69,21 +69,22 @@ class HomeBottomNav extends StatelessWidget {
                   child: Container(
                     color: palette.navBar.withValues(alpha: 0.92),
                     padding: EdgeInsets.only(
-                      left: 8,
-                      right: 8,
-                      top: 6,
-                      bottom: bottomInset + 4,
+                      left: 16,
+                      right: 16,
+                      top: 4,
+                      bottom: bottomInset + 12,
                     ),
                     child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
                       children: [
-                        for (var index = 0; index < _items.length; index++)
-                          Expanded(
-                            child: _NavItem(
-                              item: _items[index],
-                              active: index == selectedIndex,
-                              onTap: () => onTap(index),
-                            ),
+                        for (var index = 0; index < _items.length; index++) ...[
+                          if (index == 2) const SizedBox(width: 56),
+                          _NavItem(
+                            item: _items[index],
+                            active: index == selectedIndex,
+                            onTap: () => onTap(index),
                           ),
+                        ],
                       ],
                     ),
                   ),
@@ -153,6 +154,7 @@ class _Fab extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = context.palette;
     return GestureDetector(
+      key: const Key('quick-add-fab'),
       onTap: onTap,
       child: Container(
         width: 56,

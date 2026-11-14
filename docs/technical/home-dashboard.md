@@ -356,7 +356,7 @@ class RecordItem {
   final String title;
   final DateTime occurredAt;
   final Money amount;
-  final String? subLabel; // ¥0.17/km 或 ¥8.16/L
+  final String? subLabel; // ¥1.20/kWh（充电单价）或 ¥8.16/L（加油单价）
   final String? subValue;
 }
 ```

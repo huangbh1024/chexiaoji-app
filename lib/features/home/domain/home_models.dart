@@ -173,7 +173,7 @@ class RecordItem {
   final String subtitle;
   final int amountCents;
 
-  /// 充电为 `¥/km`，加油为 `¥/L`，其他分类为空。
+  /// 充电为 `¥/kWh`（单价），加油为 `¥/L`（单价），其他分类为空。
   final String? subLabel;
 }
 
