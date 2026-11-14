@@ -1,7 +1,6 @@
 import 'package:material_ui/material_ui.dart';
 
 import '../../../app/theme/app_colors.dart';
-import '../../../core/domain/enums.dart';
 import '../../../core/format/formatters.dart';
 import '../../../core/presentation/category_style.dart';
 import 'expense_detail_models.dart';

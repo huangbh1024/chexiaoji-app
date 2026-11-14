@@ -48,9 +48,9 @@ class ExpenseDetailPage extends ConsumerWidget {
     final snapshot = initialRecord == null
         ? null
         : ExpenseDetail.fromRecord(initialRecord!);
-    final detail = notFound ? null : (asyncDetail.valueOrNull ?? snapshot);
+    final detail = notFound ? null : (asyncDetail.value ?? snapshot);
     final hasLoadError =
-        asyncDetail.hasError && !notFound && asyncDetail.valueOrNull == null;
+        asyncDetail.hasError && !notFound && asyncDetail.value == null;
 
     return Scaffold(
       backgroundColor: palette.background,

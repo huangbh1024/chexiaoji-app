@@ -22,16 +22,13 @@ sealed class ExpenseDetailException implements Exception {
 }
 
 class ExpenseNotFoundException extends ExpenseDetailException {
-  const ExpenseNotFoundException([String message = '记录不存在或已被删除'])
-    : super(message);
+  const ExpenseNotFoundException([super.message = '记录不存在或已被删除']);
 }
 
 class ExpenseDetailNetworkException extends ExpenseDetailException {
-  const ExpenseDetailNetworkException([String message = '加载失败'])
-    : super(message);
+  const ExpenseDetailNetworkException([super.message = '加载失败']);
 }
 
 class ExpenseDetailConflictException extends ExpenseDetailException {
-  const ExpenseDetailConflictException([String message = '记录已更新'])
-    : super(message);
+  const ExpenseDetailConflictException([super.message = '记录已更新']);
 }

@@ -29,7 +29,7 @@ class ExpenseDetailController extends AsyncNotifier<ExpenseDetail> {
   }
 
   Future<void> saveNote(String? note) async {
-    final current = state.valueOrNull;
+    final current = state.value;
     if (current == null || _isMutating) {
       return;
     }
@@ -59,7 +59,7 @@ class ExpenseDetailController extends AsyncNotifier<ExpenseDetail> {
   }
 
   Future<void> saveTags(List<String> tags) async {
-    final current = state.valueOrNull;
+    final current = state.value;
     if (current == null || _isMutating) {
       return;
     }

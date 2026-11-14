@@ -2,7 +2,6 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_typography.dart';
-import '../../../../core/domain/enums.dart';
 import '../../../../core/widgets/app_card.dart';
 import '../../domain/expense_detail_models.dart';
 import '../../domain/expense_detail_presenter.dart';
