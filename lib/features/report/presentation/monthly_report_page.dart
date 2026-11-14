@@ -8,6 +8,8 @@ import '../../../core/widgets/blurred_header_delegate.dart';
 import '../../../core/widgets/section_error.dart';
 import '../domain/providers.dart';
 import '../domain/report_models.dart';
+import '../export/report_export_controller.dart';
+import '../export/report_exporter.dart';
 import 'widgets/report_bottom_dock.dart';
 import 'widgets/report_format_cards.dart';
 import 'widgets/report_fullscreen_preview.dart';
@@ -36,11 +38,76 @@ class _MonthlyReportPageState extends ConsumerState<MonthlyReportPage> {
   );
   ReportOptions _options = const ReportOptions();
   final ScrollController _scrollController = ScrollController();
+  late final ReportExportController _exportController;
+
+  @override
+  void initState() {
+    super.initState();
+    _exportController = ReportExportController(
+      exporter: ref.read(reportExporterProvider),
+      onShareDone: () {
+        if (!mounted) {
+          return;
+        }
+        _toast('报表已生成');
+        _exportController.reset();
+      },
+    )..addListener(_onExportStateChanged);
+  }
 
   @override
   void dispose() {
+    _exportController
+      ..removeListener(_onExportStateChanged)
+      ..cancel()
+      ..dispose();
     _scrollController.dispose();
     super.dispose();
+  }
+
+  void _onExportStateChanged() {
+    if (!mounted) {
+      return;
+    }
+    if (_exportController.state.phase == ReportExportPhase.failed) {
+      _showExportFailure();
+    }
+  }
+
+  void _showExportFailure() {
+    _exportController.reset();
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('生成失败'),
+        content: const Text('报表生成失败，请重试。'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.of(dialogContext).pop();
+            },
+            child: const Text('知道了'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _runExport(ReportExportAction action) async {
+    final report = ref.read(monthlyReportProvider(_scope)).value;
+    if (report == null || report.isEmpty) {
+      _toast('本月暂无可导出的记录');
+      return;
+    }
+    await _exportController.export(
+      report: report,
+      options: _options,
+      action: action,
+    );
   }
 
   void _onMonthChanged(DateTime month) {
@@ -131,8 +198,9 @@ class _MonthlyReportPageState extends ConsumerState<MonthlyReportPage> {
                         height: tokens.headerHeight,
                         child: ReportHeader(
                           onBack: () => Navigator.of(context).pop(),
-                          onPrint: () => _toast('打印功能将在导出阶段接入'),
-                          onShare: () => _toast('分享功能将在导出阶段接入'),
+                          busy: _exportController.state.isBusy,
+                          onPrint: () => _runExport(ReportExportAction.print),
+                          onShare: () => _runExport(ReportExportAction.share),
                         ),
                       ),
                     ),
@@ -180,6 +248,7 @@ class _MonthlyReportPageState extends ConsumerState<MonthlyReportPage> {
                   child: ReportBottomDock(
                     format: _options.format,
                     enabled: canExport,
+                    busy: _exportController.state.isBusy,
                     disabledReason: disabledReason,
                     onFullscreen: () {
                       if (report == null) {
@@ -188,13 +257,7 @@ class _MonthlyReportPageState extends ConsumerState<MonthlyReportPage> {
                       }
                       _openFullscreen(report);
                     },
-                    onExport: () {
-                      if (report == null || report.isEmpty) {
-                        _toast('本月暂无可导出的记录');
-                        return;
-                      }
-                      _toast('导出功能将在下一阶段接入');
-                    },
+                    onExport: () => _runExport(ReportExportAction.export),
                   ),
                 ),
               ],
