@@ -6,17 +6,39 @@ import '../domain/home_models.dart';
 import 'home_repository.dart';
 
 class MockHomeRepository implements HomeRepository {
-  MockHomeRepository({this.ledger});
+  MockHomeRepository({this.ledger, this.odometerResolver});
 
   final LedgerRepository? ledger;
+
+  /// 记账页新增记录后，用账单里的最新读数刷新车辆当前里程。
+  final int? Function(String vehicleId)? odometerResolver;
 
   @override
   String get defaultVehicleId => _cars.first.vehicle.id;
 
   @override
   Future<List<Vehicle>> fetchVehicles() async => [
-    for (final car in _cars) car.vehicle,
+    for (final car in _cars)
+      _withOdometer(car.vehicle, odometerResolver?.call(car.vehicle.id)),
   ];
+
+  Vehicle _withOdometer(Vehicle vehicle, int? latestKm) {
+    if (latestKm == null || latestKm <= vehicle.odometerKm) {
+      return vehicle;
+    }
+    return Vehicle(
+      id: vehicle.id,
+      name: vehicle.name,
+      plate: vehicle.plate,
+      powertrain: vehicle.powertrain,
+      powertrainLabel: vehicle.powertrainLabel,
+      odometerKm: latestKm,
+      badge: vehicle.badge,
+      batteryCapacityKwh: vehicle.batteryCapacityKwh,
+      tankCapacityL: vehicle.tankCapacityL,
+      defaultFuelGrade: vehicle.defaultFuelGrade,
+    );
+  }
 
   @override
   Future<HomeDashboard> fetchDashboard(String vehicleId) async {
@@ -114,6 +136,7 @@ final List<_CarMock> _cars = [
       powertrain: PowertrainType.ev,
       powertrainLabel: '纯电',
       odometerKm: 18426,
+      batteryCapacityKwh: 85.4,
     ),
     summary: const HomeSummary(
       costPerKm: 0.60,
@@ -246,6 +269,8 @@ final List<_CarMock> _cars = [
       powertrainLabel: '油电混动',
       odometerKm: 46210,
       badge: '油电双模',
+      tankCapacityL: 50,
+      defaultFuelGrade: 95,
     ),
     summary: const HomeSummary(
       costPerKm: 0.52,
@@ -368,6 +393,9 @@ final List<_CarMock> _cars = [
       powertrainLabel: '插电混动',
       odometerKm: 31520,
       badge: '绿牌插混',
+      batteryCapacityKwh: 18.3,
+      tankCapacityL: 60,
+      defaultFuelGrade: 92,
     ),
     summary: const HomeSummary(
       costPerKm: 0.45,
@@ -491,6 +519,8 @@ final List<_CarMock> _cars = [
       powertrainLabel: '纯燃油',
       odometerKm: 58940,
       badge: '95号汽油',
+      tankCapacityL: 59,
+      defaultFuelGrade: 95,
     ),
     summary: const HomeSummary(
       costPerKm: 0.92,

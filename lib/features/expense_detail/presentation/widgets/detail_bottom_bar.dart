@@ -15,8 +15,8 @@ class DetailBottomBar extends StatelessWidget {
   });
 
   final bool enabled;
-  final VoidCallback onReAdd;
-  final VoidCallback onEdit;
+  final VoidCallback? onReAdd;
+  final VoidCallback? onEdit;
 
   @override
   Widget build(BuildContext context) {

@@ -120,6 +120,31 @@ void main() {
     expect(find.text('结算明细'), findsOneWidget);
   });
 
+  testWidgets('中央 FAB 打开记账页', (tester) async {
+    await _pumpHome(tester);
+
+    await tester.tap(find.byKey(const Key('quick-add-fab')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('记一笔开销'), findsOneWidget);
+    expect(find.text('实付金额 (元)'), findsOneWidget);
+    expect(find.text('保存并记入账本'), findsOneWidget);
+  });
+
+  testWidgets('FAB 记账保存后回到首页', (tester) async {
+    await _pumpHome(tester);
+
+    await tester.tap(find.byKey(const Key('quick-add-fab')));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const Key('entry-amount')), '100');
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('保存并记入账本'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('车小记'), findsOneWidget);
+    expect(find.text('记一笔开销'), findsNothing);
+  });
+
   testWidgets('底部账单/统计与中央 FAB 保持设计间距', (tester) async {
     await _pumpHome(tester);
 

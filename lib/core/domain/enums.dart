@@ -32,3 +32,6 @@ extension ExpenseCategoryLabel on ExpenseCategory {
   /// 账单页「其他」分类含保险，文案沿用设计稿的「保险/其他」。
   String get filterLabel => this == ExpenseCategory.other ? '保险/其他' : label;
 }
+
+/// 支付渠道。颜色与文案映射放在 presentation 层。
+enum PaymentChannel { wechat, alipay, unionpay, etc, cash, card, other }

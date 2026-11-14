@@ -14,6 +14,12 @@ class MockLedgerRepository implements LedgerRepository {
   final Set<String> _deletedIds = {};
   LedgerLifetimeStats? _lifetimeCache;
 
+  /// 记账页手动新增的记录，与按月份生成的记录合并展示。
+  final List<LedgerRecord> _manualRecords = [];
+
+  /// 对生成的记录做原地编辑时，按 id 覆盖原记录，不破坏月份生成的确定性。
+  final Map<String, LedgerRecord> _overrides = {};
+
   @override
   Future<LedgerMonthSummary> fetchSummary(LedgerScope scope) async {
     await Future<void>.delayed(delay);
@@ -236,16 +242,106 @@ class MockLedgerRepository implements LedgerRepository {
     _lifetimeCache = null;
   }
 
-  List<LedgerRecord> _recordsFor(DateTime month) {
-    final key = '${month.year}-${month.month}';
-    final cached = _monthCache[key];
-    if (cached != null) {
-      return cached;
+  /// 记账页保存后写入手动记录；列表 / 汇总 / 报表读同一份数据。
+  void insertRecord(LedgerRecord record) {
+    _manualRecords.add(record);
+    _idIndex[record.id] = record;
+    _lifetimeCache = null;
+  }
+
+  /// 编辑记录：手动记录替换原项，生成记录用 overrides 覆盖。
+  void updateRecord(LedgerRecord record) {
+    final index = _manualRecords.indexWhere((item) => item.id == record.id);
+    if (index >= 0) {
+      _manualRecords[index] = record;
+    } else {
+      _overrides[record.id] = record;
     }
-    final records = _generate(month);
-    _monthCache[key] = records;
+    _idIndex[record.id] = record;
+    _lifetimeCache = null;
+  }
+
+  /// 该车最新一条带里程读数的记录（按发生时间倒序）。
+  LedgerRecord? latestOdometerRecord(String vehicleId) {
+    LedgerRecord? latest;
+    final now = DateTime.now();
+    for (var i = 0; i < 24; i++) {
+      final month = DateTime(now.year, now.month - i);
+      for (final record in _recordsFor(month)) {
+        if (_deletedIds.contains(record.id)) {
+          continue;
+        }
+        if (record.vehicleId != vehicleId) {
+          continue;
+        }
+        final km = record.metrics.odometerKm;
+        if (km == null || km <= 0) {
+          continue;
+        }
+        if (latest == null || record.occurredAt.isAfter(latest.occurredAt)) {
+          latest = record;
+        }
+      }
+    }
+    return latest;
+  }
+
+  /// 该车最新里程读数；无记录返回 null。
+  int? latestOdometer(String vehicleId) =>
+      latestOdometerRecord(vehicleId)?.metrics.odometerKm;
+
+  /// 发生时间之前最近一条带里程读数的记录，编辑时排除自身。
+  LedgerRecord? previousOdometerRecord({
+    required String vehicleId,
+    required DateTime before,
+    String? excludeRecordId,
+  }) {
+    LedgerRecord? latest;
+    for (var i = 0; i < 24; i++) {
+      final month = DateTime(before.year, before.month - i);
+      for (final record in _recordsFor(month)) {
+        if (_deletedIds.contains(record.id)) {
+          continue;
+        }
+        if (record.id == excludeRecordId || record.vehicleId != vehicleId) {
+          continue;
+        }
+        final km = record.metrics.odometerKm;
+        if (km == null || km <= 0) {
+          continue;
+        }
+        if (record.occurredAt.isAfter(before)) {
+          continue;
+        }
+        if (latest == null || record.occurredAt.isAfter(latest.occurredAt)) {
+          latest = record;
+        }
+      }
+    }
+    return latest;
+  }
+
+  List<LedgerRecord> _recordsFor(DateTime month) {
+    final key = _monthKey(month);
+    final base = _monthCache.putIfAbsent(key, () => _generate(month));
+    final merged = <String, LedgerRecord>{
+      for (final record in base) record.id: _overrides[record.id] ?? record,
+    };
+    for (final record in _manualRecords) {
+      if (record.occurredAt.year == month.year &&
+          record.occurredAt.month == month.month) {
+        merged[record.id] = record;
+      }
+    }
+    final records =
+        merged.values
+            .where((record) => !_deletedIds.contains(record.id))
+            .toList(growable: false)
+          ..sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
     return records;
   }
+
+  String _monthKey(DateTime month) => '${month.year}-${month.month}';
 
   List<LedgerRecord> _generate(DateTime month) {
     final now = DateTime.now();
