@@ -29,6 +29,7 @@
 
 - **PR → `main`**：只运行 `flutter pub get`、`flutter analyze`、`flutter test`，**不构建 APK**。
 - **PR 合并进 `main` 后**：运行检查 + `flutter build apk --release --target-platform android-arm64`，并上传 Artifact（保留 7 天）。
+- **只改文档的合并**：`push main` 忽略 `**.md`、`docs/**`、`LICENSE`、`.gitignore`、`.idea/**`、`.vscode/**` 等路径，纯文档改动不触发构建；`pull_request` 不过滤，保证 `verify` 始终上报（分支保护必需检查）。
 - **workflow_dispatch**：手动触发时与 main 相同，会打包。
 - 功能分支直接 push 不触发 CI；必须开 PR。
 - 不要随意修改触发条件；如需调整，同步更新 `CONTRIBUTING.md` 和 `docs/CI.md`。

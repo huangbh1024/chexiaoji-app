@@ -6,9 +6,30 @@
 
 | 事件 | 行为 |
 | --- | --- |
-| PR → `main` | 只跑检查：`pub get` / `analyze` / `test`，**不打包** |
+| PR → `main` | 只跑检查：`pub get` / `analyze` / `test`，**不打包**（不做路径过滤，保证 `verify` 始终上报） |
 | push → `main`（PR 合并后） | 跑检查 + 构建 release arm64 APK + 上传 Artifact |
+| push → `main`，但只改了文档等非代码文件 | **不触发**工作流，不产生 APK |
 | workflow_dispatch | 手动触发，行为同 push main |
+
+`push` 事件忽略以下路径（`.github/workflows/flutter-android.yml`）：
+
+```yaml
+paths-ignore:
+  - '**.md'
+  - 'docs/**'
+  - 'LICENSE'
+  - '.gitignore'
+  - '.gitattributes'
+  - '.editorconfig'
+  - '.idea/**'
+  - '.vscode/**'
+```
+
+一次推送里只要有一个非忽略文件（如 `lib/**`、`pubspec.yaml`、`android/**`），
+就会正常构建。需要给纯文档改动出包时，用 Actions 页面的 `Run workflow` 手动触发。
+
+> 为什么 PR 不做同样的过滤：`main` 分支保护把 `verify` 设为必需检查。若文档类 PR
+> 被 `paths-ignore` 跳过，`verify` 不会上报，PR 会一直卡在 “Expected” 无法合并。
 
 功能分支直接 push 不会触发 CI；先开 PR 到 `main`，合并后才会出 APK。
 分支与合并规范见 [CONTRIBUTING.md](../CONTRIBUTING.md)。
