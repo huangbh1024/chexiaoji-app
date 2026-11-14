@@ -10,6 +10,8 @@ import '../../../core/widgets/section_error.dart';
 import '../../../core/widgets/skeleton_box.dart';
 import '../domain/ledger_models.dart';
 import '../domain/providers.dart';
+import '../../expense_detail/domain/expense_detail_models.dart';
+import '../../expense_detail/presentation/expense_detail_page.dart';
 import '../../report/domain/report_models.dart';
 import '../../report/presentation/monthly_report_page.dart';
 import 'widgets/ledger_category_chips.dart';
@@ -80,6 +82,27 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
           duration: const Duration(seconds: 2),
         ),
       );
+  }
+
+  Future<void> _openExpenseDetail(LedgerRecord record) async {
+    final outcome = await Navigator.of(context).push<ExpenseDetailOutcome>(
+      MaterialPageRoute<ExpenseDetailOutcome>(
+        builder: (context) => ExpenseDetailPage(
+          recordId: record.id,
+          initialRecord: record,
+        ),
+      ),
+    );
+    if (!mounted || outcome == null) {
+      return;
+    }
+    await _refresh();
+    if (!mounted) {
+      return;
+    }
+    if (outcome == ExpenseDetailOutcome.deleted) {
+      _toast('已删除');
+    }
   }
 
   void _openReport() {
@@ -319,7 +342,7 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
         padding: const EdgeInsets.only(bottom: 4),
         child: LedgerRecordCard(
           record: recordRow.record,
-          onTap: () => _toast('账单详情待接入'),
+          onTap: () => _openExpenseDetail(recordRow.record),
         ),
       ),
     };

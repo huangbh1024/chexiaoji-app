@@ -50,6 +50,17 @@ extension ExpenseCategoryVisual on ExpenseCategory {
     ExpenseCategory.other => Icons.receipt_long_rounded,
   };
 
+  /// 摘要卡标题下的分类副标题，纯文字展示。
+  String get captionLabel => switch (this) {
+    ExpenseCategory.charging => '新能源补能',
+    ExpenseCategory.fuel => '燃油加注',
+    ExpenseCategory.maintenance => '常规保养',
+    ExpenseCategory.parking => '停车缴费',
+    ExpenseCategory.toll => '路桥通行',
+    ExpenseCategory.carWash => '美容清洗',
+    ExpenseCategory.other => '其他开销',
+  };
+
   /// 图标容器与徽标的浅色底。
   Color get softColor => color.withValues(alpha: 0.16);
 }
