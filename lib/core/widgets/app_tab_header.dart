@@ -3,6 +3,7 @@ import 'package:material_ui/material_ui.dart';
 import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_tokens.dart';
 import '../../app/theme/app_typography.dart';
+import 'profile_avatar.dart';
 
 /// 一级 Tab 顶部栏：头像 + 问候 + 标题 + 自定义右侧区域。
 ///
@@ -14,12 +15,16 @@ class AppTabHeader extends StatelessWidget {
     this.trailing,
     this.showGreeting = true,
     this.leading,
+    this.avatarInitial = '林',
   });
 
   final String title;
   final Widget? trailing;
   final bool showGreeting;
   final Widget? leading;
+
+  /// 默认头像的首字；我的页传入账号昵称首字。
+  final String avatarInitial;
 
   @override
   Widget build(BuildContext context) {
@@ -37,7 +42,7 @@ class AppTabHeader extends StatelessWidget {
           ),
           child: Row(
             children: [
-              leading ?? const _Avatar(),
+              leading ?? ProfileAvatar(initial: avatarInitial),
               SizedBox(width: tokens.spaceSm),
               Expanded(
                 child: FittedBox(
@@ -96,62 +101,4 @@ String greetingFor(DateTime now) {
     return '晚上好';
   }
   return '夜深了';
-}
-
-class _Avatar extends StatelessWidget {
-  const _Avatar();
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = context.palette;
-    return SizedBox(
-      width: 40,
-      height: 40,
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: const LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [Color(0xFFFFD9C0), Color(0xFFF7B7A3)],
-              ),
-              border: Border.all(color: palette.surface, width: 2),
-              boxShadow: [
-                BoxShadow(
-                  color: palette.shadow.withValues(alpha: 0.08),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Text(
-              '林',
-              style: AppTypography.headlineSm.copyWith(
-                color: const Color(0xFF8A4B3C),
-              ),
-            ),
-          ),
-          Positioned(
-            right: 0,
-            bottom: 0,
-            child: Container(
-              width: 12,
-              height: 12,
-              decoration: BoxDecoration(
-                color: palette.primary,
-                shape: BoxShape.circle,
-                border: Border.all(color: palette.surface, width: 2),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }

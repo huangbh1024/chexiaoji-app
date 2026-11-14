@@ -2,14 +2,14 @@
 
 | 项目 | 内容 |
 | --- | --- |
-| 关联需求 | [我的页需求文档 v0.1](../requirements/profile.md) |
+| 关联需求 | [我的页需求文档 v0.2](../requirements/profile.md) |
 | 设计稿 | [Stitch · 我的·个人中心与车主服务](https://stitch.google.com/projects/9615374848161425677?node-id=6b44826af9d8481ca5d97af011401ef0) |
 | 客户端 | Flutter 3.50.0 stable / Dart 3.14 |
 | 平台 | Android（arm64 优先）、iOS |
-| 文档版本 | v0.1（拟实施） |
-| 状态 | 方案待评审；接口契约未定稿，等待后端确认 |
+| 文档版本 | v0.2（M0–M4 已实施，Mock 数据） |
+| 状态 | P0 已实现；接口契约未定稿，等待后端接入 |
 
-> 本文档基于**仓库当前实现**编写：首页、账单、单笔详情、月度报表、统计页已落地；我的 Tab 仍是 `AppTabShell` 中的 `_ComingSoonTab`，index = 3。所有新增目录、文件与重构均为拟实施内容，按 `feat/profile-page` 分支推进。
+> 本文档基于**仓库当前实现**编写：首页、账单、单笔详情、月度报表、统计页与我的页 P0 已落地；我的 Tab 由 `ProfilePage` 接入，index = 3。以下章节保留方案设计，实际落地文件与差异见 §16。
 > 依赖现状：`material_ui`、`flutter_riverpod ^3.5.0`、`fl_chart ^1.3.1`、`intl ^0.20.3`、`pdf`、`printing`、`share_plus`、`path_provider`。本页**不新增第三方依赖**。
 
 ---
@@ -1225,8 +1225,73 @@ void _openReport(BuildContext context, WidgetRef ref) {
 
 ---
 
-## 16. 变更记录
+## 16. 实施记录（v0.2）
+
+### 16.1 落地范围
+
+- **M0**：`AppTabShell` index 3 → `ProfilePage`；公共 `ProfileAvatar`、`showAppToast`、`AppInfo`、`openMonthlyReport`；`LedgerLifetimeStats` / `fetchLifetimeStats()` 与 Mock 实现；formatters 扩展。
+- **M1**：`profile_models.dart`、`garage_aggregation.dart`、`profile_presenter.dart`、`ProfileRepository` / `ProfileApi` / `MockProfileRepository`、providers 与失效关系。
+- **M2**：`ProfilePage`、`ProfileHeader`、`ProfileSummaryCard`、`GarageSection`、`GarageVehicleCard`、全部资产汇总与车辆切换。
+- **M3**：`OwnerToolbox`（报表直达 + 三张占位卡）、`SettingsList`、`AboutSheet`、`PrivacySheet`、`AccountFooter`。
+- **M4**：深色 token、语义、点击区域、加载 / 空 / 错态与测试补齐。
+
+### 16.2 实际落地的文件
+
+```
+lib/core/domain/app_info.dart
+lib/core/presentation/toast.dart
+lib/core/widgets/profile_avatar.dart
+lib/core/widgets/app_tab_header.dart            # + avatarInitial，_Avatar → ProfileAvatar
+lib/core/format/formatters.dart                 # + formatYuanOneDecimal / formatCount / formatEnergyQuantity
+lib/app/tab_shell.dart                          # index 3 → ProfilePage
+lib/features/ledger/domain/ledger_models.dart   # + LedgerLifetimeStats
+lib/features/ledger/data/ledger_repository.dart # + fetchLifetimeStats()
+lib/features/ledger/data/mock_ledger_repository.dart
+lib/features/report/presentation/report_routes.dart
+lib/features/profile/data/{profile_repository,profile_api,mock_profile_repository}.dart
+lib/features/profile/domain/{profile_models,garage_aggregation,profile_presenter,providers}.dart
+lib/features/profile/presentation/profile_page.dart
+lib/features/profile/presentation/profile_style.dart
+lib/features/profile/presentation/widgets/*.dart
+test/profile/*.dart
+```
+
+### 16.3 与方案的差异
+
+| # | 差异 | 原因 / 处理 |
+| --- | --- | --- |
+| 1 | 错误态优先于 loading | Riverpod 3 会自动重试失败 provider，此时 `isLoading` 与 `hasError` 同时为真；资料、车库、工具状态均按 `hasError && !hasValue` 先展示错误或降级，避免一直停在骨架屏 |
+| 2 | 资料接口失败时整卡替换为 `SectionError` | 未保留统计数字的「—」占位；后续如需严格遵循需求 §6.2，可在错误卡内补三列占位 |
+| 3 | `fetchGarage` 分页使用 limit 200、最多 20 页 | 替代方案中的固定 limit 500，避免单页过大；合并后聚合，金额与笔数不受分页影响 |
+| 4 | 全部资产保养副文附加车辆简称与「即将保养」 | 窄屏下单行省略；状态颜色同时表达警示 |
+| 5 | 工具状态首载显示骨架，失败直接使用降级状态 | 报表入口保持可用；其余「即将上线 / 本地数据」，不阻塞页面 |
+| 6 | 我的页选车独立、默认全部资产 | 与首页 / 统计页解耦，避免浏览资产误改记账上下文 |
+| 7 | 设置项 P0 只读，偏好失败显示默认值 | 无新增存储依赖；P1 再接本地持久化 / 后端 |
+| 8 | 退出登录、车辆管理 / 添加、消息中心仍为 Toast | 对应页面与登录会话模块尚未实现；P0 不渲染可点击退出按钮 |
+
+### 16.4 测试与 CI
+
+- 新增 `test/profile/`：
+  - `garage_aggregation_test.dart`：天数、简称、能耗聚合、全部资产、保养紧迫度、提示条。
+  - `profile_presenter_test.dart`：资料卡 / 车库卡文案与格式化。
+  - `mock_profile_repository_test.dart`：生命周期统计、车库金额与账单汇总一致、工具状态不伪造、默认偏好。
+  - `profile_page_test.dart`：首屏、车辆切换、报表直达、占位入口、关于 / 隐私弹层、掩码手机号、资料失败隔离。
+- `flutter analyze` 无问题；`flutter test` 184 项全部通过。
+- 未新增第三方依赖；未改动 CI 配置。
+
+### 16.5 遗留
+
+- 接口契约待后端确认；`ProfileApi` 目前只有声明。
+- 车辆管理 / 添加、登录注册、消息中心、OCR 票夹、云端同步、离线队列。
+- 设置项持久化与可编辑（单位 / 货币、通知、隐私、掩码）。
+- 版本号 `AppInfo.version` 与 `pubspec.yaml` 手动同步；P1 接 `package_info_plus`。
+- 正式深色稿仍未提供，当前按 `AppPalette.dark` 推导。
+
+---
+
+## 17. 变更记录
 
 | 版本 | 日期 | 变更 |
 | --- | --- | --- |
 | v0.1 | 2026-11-14 | 首版：基于 Stitch「我的·个人中心与车主服务」与当前仓库实现，定义公共头像 / 生命周期统计 / 车库聚合 / Mock 数据层 / provider 结构 / UI 拆分 / 测试与里程碑；明确未实现能力的能力标记方案 |
+| v0.2 | 2026-11-14 | P0 已按本稿实现并接入我的 Tab；补充 §16 实施记录、差异与遗留 |

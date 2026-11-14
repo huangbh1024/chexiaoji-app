@@ -2,12 +2,34 @@ import 'package:intl/intl.dart';
 
 final NumberFormat _thousands = NumberFormat('#,##0');
 final NumberFormat _twoDecimals = NumberFormat('#,##0.00');
+final NumberFormat _oneDecimal = NumberFormat('#,##0.0');
 
 /// 聚合金额：千分位、四舍五入取整，例如 `¥1,286`。
 String formatYuanCompact(int cents) => '¥${_thousands.format(cents / 100)}';
 
 /// 明细金额：千分位、保留两位，例如 `¥51.10`。
 String formatYuanDetail(int cents) => '¥${_twoDecimals.format(cents / 100)}';
+
+/// 概览金额：千分位、保留一位，例如 `¥312.4`、`¥1,148.2`。
+String formatYuanOneDecimal(int cents) => '¥${_oneDecimal.format(cents / 100)}';
+
+/// 千分位计数，例如 `1,248`。
+String formatCount(int value) => _thousands.format(value);
+
+/// 能耗量：kWh 保留一位、L 保留两位，并去掉无意义的尾零。
+String formatEnergyQuantity(double value, {required String unit}) {
+  final text = unit == 'L'
+      ? value.toStringAsFixed(2)
+      : value.toStringAsFixed(1);
+  return '${_trimTrailingZeros(text)} $unit';
+}
+
+String _trimTrailingZeros(String text) {
+  if (!text.contains('.')) {
+    return text;
+  }
+  return text.replaceFirst(RegExp(r'0+$'), '').replaceFirst(RegExp(r'\.$'), '');
+}
 
 /// 支出金额：带负号，例如 `-¥51.10`。
 String formatExpense(int cents) => '-${formatYuanDetail(cents)}';
