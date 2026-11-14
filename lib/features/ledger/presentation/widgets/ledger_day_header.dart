@@ -32,15 +32,20 @@ class LedgerDayHeader extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 6),
-          Text(
-            formatDayTitle(row.day),
-            style: AppTypography.headlineSm.copyWith(
-              color: palette.onSurface,
+          Expanded(
+            child: Text(
+              formatDayTitle(row.day),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppTypography.headlineSm.copyWith(
+                color: palette.onSurface,
+              ),
             ),
           ),
-          const Spacer(),
+          const SizedBox(width: 8),
           Text(
             '${row.count} 笔 · 共 ${formatYuanDetail(row.totalCents)}',
+            maxLines: 1,
             style: AppTypography.labelMd.copyWith(color: palette.outline),
           ),
         ],

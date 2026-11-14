@@ -91,14 +91,25 @@ class _SummaryContent extends StatelessWidget {
                 children: [
                   Row(
                     children: [
-                      _MonthPill(
-                        month: summary.month,
-                        onTap: onPickMonth,
+                      Expanded(
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: _MonthPill(
+                              month: summary.month,
+                              onTap: onPickMonth,
+                            ),
+                          ),
+                        ),
                       ),
-                      const Spacer(),
-                      _MomPill(
-                        percent: summary.momPercent,
-                        trend: summary.momTrend,
+                      const SizedBox(width: 8),
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: _MomPill(
+                          percent: summary.momPercent,
+                          trend: summary.momTrend,
+                        ),
                       ),
                     ],
                   ),
