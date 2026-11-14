@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -10,6 +12,7 @@ import '../domain/providers.dart';
 import '../domain/report_models.dart';
 import '../export/report_export_controller.dart';
 import '../export/report_exporter.dart';
+import 'report_poster_renderer.dart';
 import 'widgets/report_bottom_dock.dart';
 import 'widgets/report_format_cards.dart';
 import 'widgets/report_fullscreen_preview.dart';
@@ -43,6 +46,7 @@ class _MonthlyReportPageState extends ConsumerState<MonthlyReportPage> {
   @override
   void initState() {
     super.initState();
+    unawaited(_cleanupTempFiles());
     _exportController = ReportExportController(
       exporter: ref.read(reportExporterProvider),
       onShareDone: () {
@@ -53,6 +57,17 @@ class _MonthlyReportPageState extends ConsumerState<MonthlyReportPage> {
         _exportController.reset();
       },
     )..addListener(_onExportStateChanged);
+  }
+
+  /// 清理 24 小时前的报表临时文件；失败不影响页面。
+  Future<void> _cleanupTempFiles() async {
+    try {
+      await ref
+          .read(reportFileServiceProvider)
+          .cleanOlderThan(const Duration(hours: 24));
+    } catch (_) {
+      // 临时目录不可用或清理失败时静默跳过。
+    }
   }
 
   @override
@@ -103,10 +118,19 @@ class _MonthlyReportPageState extends ConsumerState<MonthlyReportPage> {
       _toast('本月暂无可导出的记录');
       return;
     }
+    // 打印只接受 PDF；即使用户在底栏选了长图，顶部打印仍输出 PDF。
+    final options = action == ReportExportAction.print
+        ? _options.copyWith(format: ReportFormat.pdf)
+        : _options;
     await _exportController.export(
       report: report,
-      options: _options,
+      options: options,
       action: action,
+      capturePoster: (report, options) => ReportPosterRenderer.capture(
+        context,
+        report: report,
+        options: options,
+      ),
     );
   }
 
@@ -168,6 +192,9 @@ class _MonthlyReportPageState extends ConsumerState<MonthlyReportPage> {
     final palette = context.palette;
     final tokens = context.tokens;
     final bottomInset = MediaQuery.paddingOf(context).bottom;
+    final textScale = MediaQuery.textScalerOf(context).scale(1);
+    final extraScale = (textScale - 1).clamp(0.0, 0.5).toDouble();
+    final headerHeight = tokens.headerHeight + extraScale * 40;
     final reportAsync = ref.watch(monthlyReportProvider(_scope));
     final report = reportAsync.value;
     final canExport = report != null && !report.isEmpty;
@@ -195,7 +222,7 @@ class _MonthlyReportPageState extends ConsumerState<MonthlyReportPage> {
                     SliverPersistentHeader(
                       pinned: true,
                       delegate: BlurredHeaderDelegate(
-                        height: tokens.headerHeight,
+                        height: headerHeight,
                         child: ReportHeader(
                           onBack: () => Navigator.of(context).pop(),
                           busy: _exportController.state.isBusy,
@@ -209,7 +236,10 @@ class _MonthlyReportPageState extends ConsumerState<MonthlyReportPage> {
                         16,
                         8,
                         16,
-                        tokens.contentBottomPadding + 16 + bottomInset,
+                        tokens.contentBottomPadding +
+                            16 +
+                            bottomInset +
+                            extraScale * 40,
                       ),
                       sliver: SliverList(
                         delegate: SliverChildListDelegate([
@@ -228,7 +258,6 @@ class _MonthlyReportPageState extends ConsumerState<MonthlyReportPage> {
                             onChanged: (format) => _onOptionsChanged(
                               _options.copyWith(format: format),
                             ),
-                            onUnavailable: () => _toast('长图海报即将支持'),
                           ),
                           const SizedBox(height: 12),
                           ReportOptionToggles(
@@ -291,14 +320,18 @@ class _PreviewHeader extends StatelessWidget {
       children: [
         Icon(Icons.visibility_rounded, size: 18, color: palette.primary),
         const SizedBox(width: 6),
-        Text(
-          '报表实时预览 (A4标准)',
-          style: AppTypography.headlineSm.copyWith(
-            color: palette.onSurface,
-            fontSize: 15,
+        Expanded(
+          child: Text(
+            '报表实时预览 (A4标准)',
+            style: AppTypography.headlineSm.copyWith(
+              color: palette.onSurface,
+              fontSize: 15,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
         ),
-        const Spacer(),
+        const SizedBox(width: 8),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
           decoration: BoxDecoration(

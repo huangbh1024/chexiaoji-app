@@ -122,31 +122,43 @@ class ReportPaperSurface extends StatelessWidget {
     super.key,
     required this.report,
     required this.options,
+    this.flat = false,
   });
 
   final MonthlyReport report;
   final ReportOptions options;
 
+  /// 长图导出时去掉圆角与阴影，输出完整矩形纸面。
+  final bool flat;
+
   @override
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
-    return SizedBox(
-      width: reportPaperWidth,
-      height: reportPaperHeight,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: AppPalette.light.surface,
-          borderRadius: BorderRadius.circular(reportPaperRadius),
-          boxShadow: reportPaperShadow,
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(reportPaperRadius),
-          child: Theme(
-            data: reportPaperTheme(),
-            child: MediaQuery(
-              data: media.copyWith(textScaler: TextScaler.noScaling),
-              child: ReportPaperCanvas(report: report, options: options),
+    final borderRadius = BorderRadius.circular(reportPaperRadius);
+    final content = Theme(
+      data: reportPaperTheme(),
+      child: MediaQuery(
+        data: media.copyWith(textScaler: TextScaler.noScaling),
+        child: ReportPaperCanvas(report: report, options: options),
+      ),
+    );
+
+    return Semantics(
+      container: true,
+      label: report.paperSemanticsLabel(options),
+      child: ExcludeSemantics(
+        child: SizedBox(
+          width: reportPaperWidth,
+          height: reportPaperHeight,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: AppPalette.light.surface,
+              borderRadius: flat ? null : borderRadius,
+              boxShadow: flat ? null : reportPaperShadow,
             ),
+            child: flat
+                ? content
+                : ClipRRect(borderRadius: borderRadius, child: content),
           ),
         ),
       ),
@@ -188,7 +200,7 @@ class ReportPaperCanvas extends StatelessWidget {
             const SizedBox(height: 7),
             _CategorySection(report: report),
             const Spacer(),
-            _PaperFooter(report: report),
+            _PaperFooter(report: report, options: options),
           ],
         ),
       ),
@@ -991,14 +1003,16 @@ class _LegendItem extends StatelessWidget {
 }
 
 class _PaperFooter extends StatelessWidget {
-  const _PaperFooter({required this.report});
+  const _PaperFooter({required this.report, required this.options});
 
   final MonthlyReport report;
+  final ReportOptions options;
 
   @override
   Widget build(BuildContext context) {
     final palette = context.palette;
     final verified = report.verified;
+    final meta = report.footerMetaText(maskPlate: options.maskPlate);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1044,6 +1058,19 @@ class _PaperFooter extends StatelessWidget {
             ),
           ],
         ),
+        if (meta.isNotEmpty) ...[
+          const SizedBox(height: 2),
+          Text(
+            meta,
+            style: AppTypography.bodySm.copyWith(
+              color: palette.outline,
+              fontSize: 7,
+              height: 1.1,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
       ],
     );
   }

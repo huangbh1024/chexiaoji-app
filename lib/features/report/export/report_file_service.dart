@@ -10,6 +10,9 @@ class ReportFileService {
 
   final String directoryName;
 
+  /// 单个报表文件上限；超过时提示用户而不是写满磁盘。
+  static const int maxFileBytes = 10 * 1024 * 1024;
+
   Future<Directory> _directory() async {
     final base = await getTemporaryDirectory();
     final directory = Directory('${base.path}/$directoryName');
@@ -20,6 +23,9 @@ class ReportFileService {
   }
 
   Future<File> write(String fileName, List<int> bytes) async {
+    if (bytes.length > maxFileBytes) {
+      throw const FileSystemException('报表文件超过 10MB 上限');
+    }
     final directory = await _directory();
     final file = File('${directory.path}/$fileName');
     await file.writeAsBytes(bytes, flush: true);

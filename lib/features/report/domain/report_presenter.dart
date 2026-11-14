@@ -19,6 +19,53 @@ extension MonthlyReportPresentation on MonthlyReport {
     return '数据截至 ${_formatMonthDayTime(updatedAt)}';
   }
 
+  /// 当前月完整的数据截止时间，用于 PDF / 页脚：`2026-11-14 10:00`。
+  String get dataCutoffText =>
+      '${_formatDate(updatedAt)} '
+      '${_two(updatedAt.hour)}:${_two(updatedAt.minute)}';
+
+  /// 导出文件与预览共用的页脚补充说明：当前月截止时间 + 隐私脱敏。
+  String footerMetaText({required bool maskPlate}) {
+    final parts = <String>[
+      if (status == ReportStatus.recording) '数据截至 $dataCutoffText · 记录中',
+      if (maskPlate) '车牌已脱敏',
+    ];
+    return parts.join(' · ');
+  }
+
+  /// 单日开销峰值；无数据时返回 null。
+  ReportDailyPoint? get peakDay {
+    ReportDailyPoint? peak;
+    for (final point in daily) {
+      if (point.totalCents <= 0) {
+        continue;
+      }
+      if (peak == null || point.totalCents > peak.totalCents) {
+        peak = point;
+      }
+    }
+    return peak;
+  }
+
+  /// 整张报表的无障碍摘要。纸内文字不逐个朗读，避免重复。
+  String paperSemanticsLabel(ReportOptions options) {
+    final peak = peakDay;
+    final parts = <String>[
+      formatMonthLabel(scope.month),
+      vehicleTitle,
+      '总开销${formatYuanDetail(totalCents)}',
+      distanceKm <= 0 ? '行驶里程未知' : '行驶${formatKmValue(distanceKm)}公里',
+      '$recordCount笔记录',
+      if (options.includeEnergy && costPerKmCents != null)
+        '综合每公里${formatYuanDetail(costPerKmCents!)}',
+      if (peak != null)
+        '峰值${peak.date.month}月${peak.date.day}日'
+            '${formatYuanDetail(peak.totalCents)}',
+      if (options.maskPlate) '车牌已脱敏',
+    ];
+    return parts.join('，');
+  }
+
   /// 车辆信息条主标题。
   String get vehicleTitle {
     if (vehicles.length <= 1) {

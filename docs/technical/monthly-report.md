@@ -1264,10 +1264,11 @@ Column(
 
 ### 9.7 导出格式卡与开关
 
-- `ReportFormatCards`：`Row` + 3 个 `Expanded`，间距 10。
+- `ReportFormatCards`：`IntrinsicHeight` + `Row` + 3 个 `Expanded`，间距 10。
   - 卡片 `InkWell` + `AnimatedContainer`；选中 `border: Border.all(color: palette.primary, width: 2)`，未选中 `Border.all(color: Colors.transparent, width: 2)`，避免选中时尺寸跳动。
   - 勾选徽标 `Positioned(top: -6, right: -6)`，20×20 主色圆 + 白色 `check` 14。
-  - 长图卡 `enabled: false`，整体 `Opacity(0.55)`，点击 Toast「长图海报即将支持」。
+  - 卡片最小高度 116，由 `IntrinsicHeight` 保证三卡等高；系统字号放大时随内容增高，不裁切文字。
+  - 长图卡已启用，底部文案「高清图档」，点击切到 `ReportFormat.poster`。
 - `ReportOptionToggles`：三行自定义 `_ToggleRow`：
   - 整行 `InkWell`（热区 ≥ 44）；
   - 右侧 20×20 `AnimatedContainer`，选中主色 + 白色勾，未选中白底 + 1px 描边；
@@ -1498,11 +1499,12 @@ class ReportFileService {
 - Android / iOS 均不申请存储权限：分享面板由系统接管，用户选择「存储到文件」时由系统写入。
 - 生成失败：删除已写入的临时文件，抛 `ReportExportException`。
 
-### 10.5 长图（P1）
+### 10.5 长图（P1，已实现）
 
-- 使用预览纸的 `RepaintBoundary`，`toImage(pixelRatio: 3)`；屏幕宽度 358 → 约 1074px，满足社交分享。
-- 若需要 1080px 以上，使用离屏 `OverlayEntry` 以 360 逻辑宽度渲染后截取；本期先用屏幕内边界。
-- 背景补白 + 底部品牌行（「车小记 · 2026年11月」）在截取前临时显示，截取后移除。
+- 使用离屏 `OverlayEntry` 插入 `ReportPaperSurface(flat: true)`，外包 `RepaintBoundary`；插入后等待 `endOfFrame` 再截取，渲染完立即移除。
+- `toImage(pixelRatio: 1080 / 358 ≈ 3.02)`，输出约 1080×1528 PNG，满足社交分享；纸面去掉圆角与阴影，避免透明边缘。
+- 长图与页面预览共用同一 Widget 树，隐私脱敏、能耗开关、页脚文案自动一致；文件命名 `车小记_月报_YYYY-MM_车辆.png`。
+- 渲染回调由页面通过 `ReportPosterCapture` 注入 `ReportExportController`，导出层只负责落盘与分享，便于测试替换。
 - PNG 体积目标 < 2MB；生成后走同一分享面板。
 
 ### 10.6 导出流程
@@ -1516,7 +1518,11 @@ Future<void> export({...}) async {
     final File file = switch (options.format) {
       ReportFormat.pdf => await exporter.buildPdf(report, options),
       ReportFormat.csv => await exporter.buildCsv(scope, options),
-      ReportFormat.poster => await exporter.buildImage(report, options),
+      ReportFormat.poster => await exporter.buildImage(
+        report,
+        options,
+        await capturePoster(report, options),
+      ),
     };
     if (_cancelled) { await file.delete(); return; }
 
@@ -1544,29 +1550,26 @@ Future<void> export({...}) async {
 
 PDF 不依赖设备字体，必须自带中文：
 
-| 文件 | 用途 | 体积目标 |
+| 文件 | 用途 | 体积 |
 | --- | --- | --- |
-| `NotoSansSC-Regular.ttf` | 正文 / 中文 | ≤ 3MB（子集） |
-| `NotoSansSC-Bold.ttf` | 标题 / 金额 | ≤ 3MB（子集） |
+| `assets/fonts/PlusJakartaSans-*.ttf` | 拉丁、数字、金额、符号 | 各约 63KB |
+| `assets/fonts/DroidSansFallback.ttf` | 中文与中文标点（子集） | 约 2.7MB |
+| `assets/fonts/MaterialIcons-Subset.ttf` | 车辆 / 趋势 / 校验图标（12 个字形） | 约 4KB |
 
-- 完整 Noto Sans SC 约 10MB/字重，直接打包会显著增大 APK。建议用 `fonttools` 按 GB2312 + 产品词表做子集：
+- 中文使用 **Droid Sans Fallback**（Apache-2.0，许可证说明随 `DroidSansFallback-NOTICE.txt` 入库）。仓库内文件是字形子集：只保留 `U+2000-206F`、`U+3000-303F`、`U+4E00-9FFF`、`U+FF00-FFEF`，从 3.85MB 降到 2.7MB；拉丁由 Plus Jakarta Sans 渲染，因此无需在 CJK 字体里保留 ASCII。
+- PDF 图标使用 Material Icons 的 12 字形子集（Apache-2.0，说明见 `MaterialIcons-NOTICE.txt`），与页面 `Icons.*` 的 `codePoint` 一一对应，避免手绘图标走样。
+- **字体选择按文本内容决定主字体**：含中文的字符串把 CJK 设为 `font`、Plus Jakarta 作为 fallback；纯拉丁字符串反之。PDF 的字宽测量只看主字体，若只把中文放进 `fontFallback`，量到的宽度会偏小，紧挨着的徽标 / 卡片会被裁切。
+- PDF 字体加载走 `rootBundle.load`，`ReportPdfFonts.load()` 首次加载后缓存 `pw.Font`，不注册为 Flutter 全局字体（避免与中文系统字体叠加）。
+- 需要重新生成子集时，从 AOSP 取回完整 `DroidSansFallbackFull.ttf` 后执行：
   ```bash
-  pyftsubset NotoSansSC-Regular.ttf \
-    --unicodes="U+0020-007E,U+00A5,U+3000-303F,U+4E00-9FFF,U+FF00-FFEF" \
-    --output-file=assets/fonts/NotoSansSC-Regular.ttf
+  pyftsubset DroidSansFallbackFull.ttf \
+    --unicodes="U+2000-206F,U+3000-303F,U+4E00-9FFF,U+FF00-FFEF" \
+    --output-file=assets/fonts/DroidSansFallback.ttf \
+    --layout-features='*' --glyph-names --symbol-cmap --legacy-cmap \
+    --notdef-glyph --notdef-outline --recommended-glyphs \
+    --name-IDs='*' --name-legacy --name-languages='*'
   ```
-  若 CI 不便引入字体子集步骤，可先使用完整字体并评估 APK 体积增量（Android arm64 release +6–8MB），或改用 `printing` 的 `PdfGoogleFonts.notoSansSCRegular()`（首次联网下载并缓存，离线不可用）。
-- 数字 / 拉丁优先 Plus Jakarta Sans（已有 400/500/600/700/800），中文回退 Noto Sans SC；`pw.ThemeData.withFont` 的 `fontFallback` 参数在锁定版本中若不存在，则对所有中文 `pw.Text` 显式指定 `style: pw.TextStyle(font: fonts.cjkRegular)`。
-- 字体许可证：Noto Sans SC 为 OFL-1.1，随 `assets/fonts/OFL.txt` 一并入库。
-- `pubspec.yaml` 增加：
-  ```yaml
-  flutter:
-    assets:
-      - assets/fonts/NotoSansSC-Regular.ttf
-      - assets/fonts/NotoSansSC-Bold.ttf
-      - assets/fonts/OFL.txt
-  ```
-  PDF 字体的加载走 `rootBundle.load`，不注册为 Flutter 全局字体（避免与中文系统字体叠加）。
+  若字体缺失个别生僻字，PDF 会显示 `?`；CSV 不受影响。后续若需要生僻字覆盖，可扩大到 GB18030 或改用完整字体。
 
 ---
 
@@ -1644,7 +1647,9 @@ PDF 不依赖设备字体，必须自带中文：
   - `buildReportPdfBytes` 返回非空、以 `%PDF-` 开头；
   - 关闭能耗分析后页数仍为 1；
   - 当前月页脚包含「记录中」；隐私开启时字节流中的车牌为脱敏值（可用 `pdf` 文本提取或构建前参数断言）。
-- `ReportExportController`：串行、失败重试、取消后删除文件（注入 FakeExporter 断言调用次数）。
+- `ReportExportController`：串行、失败重试、取消后删除文件（注入 FakeExporter 断言调用次数）；长图走 `capturePoster` + `buildImage`。
+- `MonthlyReportPresentation`：当前月页脚含「数据截至 … · 记录中」，隐私开关追加「车牌已脱敏」；无障碍摘要含金额、里程、笔数、峰值与脱敏提示。
+- `ReportPosterRenderer`：离屏渲染输出 PNG 签名、尺寸与体积正常。
 - API / DTO（M5）：
   - `ReportMapper.fromJson` 解析 §7.4.2 fixture，字段与领域模型一一对应；
   - 未知字段忽略、可空字段缺失按 `null`、未知枚举回退默认并打点；
@@ -1659,7 +1664,7 @@ PDF 不依赖设备字体，必须自带中文：
 - 状态徽标：历史月「已出账」、当前月「记录中」、未来月不可选。
 - 预览：品牌头、单号、KPI、图表、分类条、校验行存在；`includeEnergy = false` 时第 2 列与图表消失。
 - 隐私：开启后预览车牌文本变化；CSV / PDF 参数收到 `maskPlate = true`（通过 FakeExporter）。
-- 格式卡：默认 PDF；点击 CSV 后 CTA 文案变化；长图卡禁用并提示。
+- 格式卡：默认 PDF；点击 CSV / 长图后 CTA 文案变化；长图渲染回调被调用。
 - 开关：第三项默认关闭；第二项不可点；点击第一项只重建预览，不触发仓库请求。
 - 底栏：空月禁用 + 原因文案；导出中 loading；失败弹窗。
 - 缩放 / 全屏：双击后 `TransformationController` scale ≈ 2；全屏路由打开 / 关闭。
@@ -1691,6 +1696,8 @@ PDF 不依赖设备字体，必须自带中文：
 | M3 导出 | `pdf` / `share_plus` / `path_provider` / `printing` 接入；PDF + CSV；分享、打印、失败重试、临时文件清理 | 可实际导出报销文件 |
 | M4 打磨 | 隐私开关全链路、能耗开关、无障碍、性能、字体子集、长图（P1） | 达到验收清单 |
 | M5 接口接入 | `HttpReportApi` / `HttpLedgerApi` 替换 Mock；DTO mapper、ETag / 304、超时重试、契约 fixture 与不变量校验 | 前后端联调通过，生产环境走真实接口 |
+
+**当前进度**：M0–M4 已完成（M4 含隐私开关全链路、能耗开关、无障碍摘要与 44×44 热区、1.3× 字号、临时文件清理、CSV 大列表 isolate、字体子集、长图 P1）；M5 待后端接口可用后接入。
 
 分支建议：
 
@@ -1732,7 +1739,7 @@ PDF 不依赖设备字体，必须自带中文：
 2. 报表不跟随账单页分类筛选；范围只含月份 + 车辆。
 3. 当前月允许导出，PDF 标注数据截止时间与「记录中」。
 4. 全部车辆显示「全部车辆（N 台）」、隐藏车牌、里程求和；能耗分列充电 kWh 与加油 L。
-5. 发票 / 凭证开关本期默认关闭并置灰；长图与多页 PDF 列 P1。
+5. 发票 / 凭证开关本期默认关闭并置灰；长图已实现，多页 PDF 仍列 P1。
 6. 保养分类色统一琥珀 `#EAB308`；图表标题「每日开销走势」；分类统计「共 N 笔收支」。
 7. 云端校验与财务戳记使用中性文案，真实校验能力具备后再切换。
 8. 导出走系统分享面板，不自建保存目录、不申请存储权限。

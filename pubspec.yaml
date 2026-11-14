@@ -66,8 +66,10 @@ flutter:
   uses-material-design: true
 
   assets:
-    - assets/fonts/DroidSansFallbackFull.ttf
+    - assets/fonts/DroidSansFallback.ttf
     - assets/fonts/DroidSansFallback-NOTICE.txt
+    - assets/fonts/MaterialIcons-Subset.ttf
+    - assets/fonts/MaterialIcons-NOTICE.txt
 
   fonts:
     - family: PlusJakartaSans

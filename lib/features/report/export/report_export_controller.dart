@@ -63,6 +63,7 @@ class ReportExportController extends ChangeNotifier {
     required MonthlyReport report,
     required ReportOptions options,
     required ReportExportAction action,
+    ReportPosterCapture? capturePoster,
   }) async {
     if (_state.isBusy) {
       return;
@@ -76,11 +77,23 @@ class ReportExportController extends ChangeNotifier {
     );
 
     try {
-      final File file = switch (options.format) {
-        ReportFormat.pdf => await exporter.buildPdf(report, options),
-        ReportFormat.csv => await exporter.buildCsv(report, options),
-        ReportFormat.poster => throw const ReportExportException('长图海报即将支持'),
-      };
+      final File file;
+      switch (options.format) {
+        case ReportFormat.pdf:
+          file = await exporter.buildPdf(report, options);
+        case ReportFormat.csv:
+          file = await exporter.buildCsv(report, options);
+        case ReportFormat.poster:
+          final capture = capturePoster;
+          if (capture == null) {
+            throw const ReportExportException('长图渲染不可用');
+          }
+          final bytes = await capture(report, options);
+          if (_cancelled) {
+            return;
+          }
+          file = await exporter.buildImage(report, options, bytes);
+      }
       if (_cancelled) {
         await _deleteQuietly(file);
         return;

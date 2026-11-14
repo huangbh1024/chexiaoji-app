@@ -1,3 +1,5 @@
+import 'dart:isolate';
+
 import 'package:chexiaoji_app/core/domain/enums.dart';
 import 'package:chexiaoji_app/features/ledger/domain/ledger_models.dart';
 import 'package:chexiaoji_app/features/report/domain/report_aggregation.dart';
@@ -190,6 +192,27 @@ void main() {
 
       final lines = csv.split('\r\n');
       expect(lines.length, 3); // BOM + 表头 + 1 行
+    });
+
+    test('报表与记录可跨 isolate 传递（大列表导出路径）', () async {
+      final records = [
+        _record(
+          id: 'a',
+          category: ExpenseCategory.charging,
+          occurredAt: DateTime(2026, 11, 5, 10),
+        ),
+      ];
+      final report = _report(records);
+
+      final csv = await Isolate.run(
+        () => buildReportCsv(
+          report: report,
+          records: records,
+          options: const ReportOptions(),
+        ),
+      );
+
+      expect(csv, contains('特来电快充'));
     });
   });
 }

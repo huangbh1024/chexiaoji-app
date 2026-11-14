@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:chexiaoji_app/core/domain/enums.dart';
 import 'package:chexiaoji_app/features/report/domain/report_models.dart';
@@ -9,6 +10,7 @@ import 'package:flutter_test/flutter_test.dart';
 class _FakeExporter implements ReportExporter {
   int pdfCalls = 0;
   int csvCalls = 0;
+  int imageCalls = 0;
   int shareCalls = 0;
   int printCalls = 0;
   Object? failWith;
@@ -26,6 +28,16 @@ class _FakeExporter implements ReportExporter {
   Future<File> buildCsv(MonthlyReport report, ReportOptions options) async {
     csvCalls++;
     return File('/tmp/test.csv');
+  }
+
+  @override
+  Future<File> buildImage(
+    MonthlyReport report,
+    ReportOptions options,
+    Uint8List bytes,
+  ) async {
+    imageCalls++;
+    return File('/tmp/test.png');
   }
 
   @override
@@ -139,7 +151,28 @@ void main() {
     expect(controller.state.phase, ReportExportPhase.done);
   });
 
-  test('长图海报尚未支持', () async {
+  test('长图海报调用 capture 与 buildImage', () async {
+    final exporter = _FakeExporter();
+    final controller = ReportExportController(exporter: exporter);
+    var captured = 0;
+
+    await controller.export(
+      report: _report(),
+      options: const ReportOptions(format: ReportFormat.poster),
+      action: ReportExportAction.export,
+      capturePoster: (report, options) async {
+        captured++;
+        return Uint8List.fromList(const [1, 2, 3]);
+      },
+    );
+
+    expect(captured, 1);
+    expect(exporter.imageCalls, 1);
+    expect(exporter.shareCalls, 1);
+    expect(controller.state.phase, ReportExportPhase.done);
+  });
+
+  test('长图缺少渲染回调时进入 failed', () async {
     final exporter = _FakeExporter();
     final controller = ReportExportController(exporter: exporter);
 
@@ -149,6 +182,7 @@ void main() {
       action: ReportExportAction.export,
     );
 
+    expect(exporter.imageCalls, 0);
     expect(controller.state.phase, ReportExportPhase.failed);
   });
 
