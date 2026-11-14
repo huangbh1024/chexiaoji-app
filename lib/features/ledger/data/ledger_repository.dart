@@ -10,4 +10,7 @@ abstract class LedgerRepository {
     String? cursor,
     int limit = 30,
   });
+
+  /// 账号生命周期统计：全部车辆、全部历史、未删除记录。
+  Future<LedgerLifetimeStats> fetchLifetimeStats();
 }

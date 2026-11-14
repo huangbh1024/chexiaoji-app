@@ -344,6 +344,19 @@ class LedgerListState {
   }
 }
 
+/// 账号生命周期统计：全部车辆、全部历史、未删除记录。
+///
+/// Mock 阶段窗口为最近 24 个月；接入后端后由服务端返回。
+@immutable
+class LedgerLifetimeStats {
+  const LedgerLifetimeStats({required this.recordCount, this.firstRecordAt});
+
+  final int recordCount;
+
+  /// 最早一条有效记录的时间；无记录为 null。
+  final DateTime? firstRecordAt;
+}
+
 /// 日期是否同一天。
 bool isSameDay(DateTime a, DateTime b) =>
     a.year == b.year && a.month == b.month && a.day == b.day;

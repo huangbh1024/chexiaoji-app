@@ -12,6 +12,7 @@ class MockLedgerRepository implements LedgerRepository {
   final Map<String, List<LedgerRecord>> _monthCache = {};
   final Map<String, LedgerRecord> _idIndex = {};
   final Set<String> _deletedIds = {};
+  LedgerLifetimeStats? _lifetimeCache;
 
   @override
   Future<LedgerMonthSummary> fetchSummary(LedgerScope scope) async {
@@ -143,6 +144,23 @@ class MockLedgerRepository implements LedgerRepository {
     );
   }
 
+  @override
+  Future<LedgerLifetimeStats> fetchLifetimeStats() async {
+    final cached = _lifetimeCache;
+    if (cached != null) {
+      return cached;
+    }
+    final now = DateTime.now();
+    final from = DateTime(now.year, now.month - 23);
+    final records = recordsBetween(from, now);
+    final stats = LedgerLifetimeStats(
+      recordCount: records.length,
+      firstRecordAt: firstRecordAt(),
+    );
+    _lifetimeCache = stats;
+    return stats;
+  }
+
   /// 按 id 查找记录：先查索引，再回扫最近 24 个月。
   ///
   /// 已删除的记录返回 null。
@@ -215,6 +233,7 @@ class MockLedgerRepository implements LedgerRepository {
   void markDeleted(String id) {
     _deletedIds.add(id);
     _idIndex.remove(id);
+    _lifetimeCache = null;
   }
 
   List<LedgerRecord> _recordsFor(DateTime month) {

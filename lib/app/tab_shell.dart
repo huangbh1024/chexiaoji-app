@@ -2,11 +2,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../app/theme/app_colors.dart';
-import '../app/theme/app_tokens.dart';
-import '../app/theme/app_typography.dart';
 import '../core/widgets/app_bottom_nav.dart';
 import '../features/home/presentation/home_page.dart';
 import '../features/ledger/presentation/ledger_page.dart';
+import '../features/profile/presentation/profile_page.dart';
 import '../features/stats/presentation/stats_page.dart';
 import 'tab.dart';
 
@@ -100,7 +99,9 @@ class _AppTabShellState extends ConsumerState<AppTabShell> {
               else
                 const SizedBox.shrink(),
               if (visited(AppTab.profile))
-                const _ComingSoonTab(label: '我的', icon: Icons.person_rounded)
+                ProfilePage(
+                  scrollController: _scrollControllers[AppTab.profile]!,
+                )
               else
                 const SizedBox.shrink(),
             ],
@@ -120,38 +121,6 @@ class _AppTabShellState extends ConsumerState<AppTabShell> {
               ),
             ),
           ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ComingSoonTab extends StatelessWidget {
-  const _ComingSoonTab({required this.label, required this.icon});
-
-  final String label;
-  final IconData icon;
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = context.palette;
-    final tokens = context.tokens;
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 44, color: palette.outline),
-          const SizedBox(height: 12),
-          Text(
-            label,
-            style: AppTypography.headlineMd.copyWith(color: palette.onSurface),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            '页面待接入',
-            style: AppTypography.bodyMd.copyWith(color: palette.outline),
-          ),
-          SizedBox(height: tokens.contentBottomPadding),
         ],
       ),
     );
