@@ -3,7 +3,6 @@ import 'package:chexiaoji_app/features/expense_detail/data/expense_detail_reposi
 import 'package:chexiaoji_app/features/expense_detail/domain/expense_detail_models.dart';
 import 'package:chexiaoji_app/features/expense_detail/domain/providers.dart';
 import 'package:chexiaoji_app/features/expense_detail/presentation/expense_detail_page.dart';
-import 'package:chexiaoji_app/features/ledger/domain/ledger_models.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
