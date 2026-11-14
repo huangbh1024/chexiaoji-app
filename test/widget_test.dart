@@ -86,7 +86,7 @@ void main() {
   testWidgets('充电记录副指标显示充电单价', (tester) async {
     await _pumpHome(tester);
 
-    final charging = find.textContaining('充电 · ').first;
+    final charging = find.textContaining('充电 · ');
     await tester.dragUntilVisible(
       charging,
       find.byType(CustomScrollView),
