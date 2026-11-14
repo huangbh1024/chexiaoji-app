@@ -27,9 +27,13 @@ class BlurredHeaderDelegate extends SliverPersistentHeaderDelegate {
     return ClipRect(
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
-        child: ColoredBox(
-          color: palette.background.withValues(alpha: 0.86),
-          child: child,
+        child: SizedBox(
+          height: height,
+          width: double.infinity,
+          child: ColoredBox(
+            color: palette.background.withValues(alpha: 0.86),
+            child: child,
+          ),
         ),
       ),
     );
