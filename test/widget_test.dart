@@ -82,4 +82,29 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('页面待接入'), findsOneWidget);
   });
+
+  testWidgets('充电记录副指标显示充电单价', (tester) async {
+    await _pumpHome(tester);
+
+    await tester.dragUntilVisible(
+      find.text('充电 · 特来电科技园站'),
+      find.byType(CustomScrollView),
+      const Offset(0, -220),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('¥1.20/kWh'), findsOneWidget);
+    expect(find.text('¥0.17/km'), findsNothing);
+  });
+
+  testWidgets('底部账单/统计与中央 FAB 保持设计间距', (tester) async {
+    await _pumpHome(tester);
+
+    final ledger = tester.getCenter(find.text('账单'));
+    final stats = tester.getCenter(find.text('统计'));
+    final fab = tester.getCenter(find.byKey(const Key('quick-add-fab')));
+
+    expect(fab.dx - ledger.dx, closeTo(81, 3));
+    expect(stats.dx - fab.dx, closeTo(81, 3));
+  });
 }

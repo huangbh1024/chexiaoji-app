@@ -145,7 +145,7 @@ final List<_CarMock> _cars = [
         title: '充电 · 特来电科技园站',
         subtitle: '今天 08:42 · 42.6 kWh · 里程 18,426',
         amountCents: 5110,
-        subLabel: '¥0.17/km',
+        subLabel: '¥1.20/kWh',
       ),
       RecordItem(
         id: 'ev-2',
@@ -396,7 +396,7 @@ final List<_CarMock> _cars = [
         title: '充电 · 国家电网快充',
         subtitle: '昨天 19:20 · 28.5 kWh · 里程 31,520',
         amountCents: 4230,
-        subLabel: '¥0.14/km',
+        subLabel: '¥1.48/kWh',
       ),
       RecordItem(
         id: 'phev-2',
