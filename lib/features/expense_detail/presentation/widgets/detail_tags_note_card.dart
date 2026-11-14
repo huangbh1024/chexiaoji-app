@@ -93,24 +93,28 @@ class _EditNoteButton extends StatelessWidget {
     return Semantics(
       button: true,
       label: '编辑备注',
-      child: InkWell(
-        onTap: onTap,
+      child: Material(
+        color: Colors.transparent,
         borderRadius: BorderRadius.circular(8),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.edit_rounded, size: 14, color: palette.tertiary),
-              const SizedBox(width: 2),
-              Text(
-                '编辑备注',
-                style: AppTypography.labelMd.copyWith(
-                  color: palette.tertiary,
-                  fontWeight: FontWeight.w600,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(8),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.edit_rounded, size: 14, color: palette.tertiary),
+                const SizedBox(width: 2),
+                Text(
+                  '编辑备注',
+                  style: AppTypography.labelMd.copyWith(
+                    color: palette.tertiary,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -324,8 +328,9 @@ class _NoteText extends StatelessWidget {
               overflow: expanded ? TextOverflow.visible : TextOverflow.ellipsis,
             ),
             if (canExpand)
-              InkWell(
+              GestureDetector(
                 onTap: onToggle,
+                behavior: HitTestBehavior.opaque,
                 child: Padding(
                   padding: const EdgeInsets.only(top: 4),
                   child: Text(
