@@ -161,6 +161,7 @@ class LedgerMetrics {
     this.kwh,
     this.liters,
     this.odometerKm,
+    this.distanceKm,
     this.durationMinutes,
     this.plate,
     this.paymentMethod,
@@ -169,6 +170,9 @@ class LedgerMetrics {
   final double? kwh;
   final double? liters;
   final int? odometerKm;
+
+  /// 该笔记录对应的行驶距离（非累计里程），用于月度里程兜底。
+  final int? distanceKm;
   final int? durationMinutes;
   final String? plate;
   final String? paymentMethod;
@@ -184,6 +188,7 @@ class LedgerRecord {
     required this.title,
     required this.amountCents,
     required this.occurredAt,
+    this.vehicleName,
     this.badgeText,
     this.badgeKind = LedgerBadgeKind.none,
     this.description,
@@ -195,6 +200,9 @@ class LedgerRecord {
   final String id;
   final String vehicleId;
   final String vehicleShortName;
+
+  /// 车辆全名，CSV 明细与报表导出使用；旧数据可为 null。
+  final String? vehicleName;
   final PowertrainType powertrain;
   final ExpenseCategory category;
   final String title;
