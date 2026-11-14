@@ -3,7 +3,7 @@
 | 项目 | 内容 |
 | --- | --- |
 | 页面 | 统计（底部导航第 3 个 Tab），顶部标题「数据统计」 |
-| 版本 | v0.1（草案） |
+| 版本 | v0.2（P0 已实现，Mock 数据） |
 | 更新日期 | 2026-11-14 |
 | 设计稿（当前版） | [Stitch · 统计与能耗深度分析页（联动与走势优化版）](https://stitch.google.com/projects/9615374848161425677?node-id=eca4e1e065c94589b5cb5d2fdece1540) |
 | 对照版本（仅参考） | [统计与能耗深度分析页](https://stitch.google.com/projects/9615374848161425677?node-id=53482c3162b643d8913a71242930aa49) · [车型与维度联动版](https://stitch.google.com/projects/9615374848161425677?node-id=5f4f341c55b64ad5aa87cfd87b9e0397) · [单车真实数据核算版](https://stitch.google.com/projects/9615374848161425677?node-id=73524c2c65584a37a8e11043aa587a5e) · [单车专属能耗分析](https://stitch.google.com/projects/9615374848161425677?node-id=743d0b61134d40c98418c1843d16b76f) |
@@ -12,7 +12,7 @@
 | 关联页面 | 首页、账单、记账、月度报表、添加 / 编辑爱车、我的 |
 | 关联文档 | [首页需求](home-dashboard.md) · [账单需求](ledger.md) · [单笔开销详情](expense-detail.md) · [月度报表](monthly-report.md) |
 | 技术方案 | [docs/technical/statistics.md](../technical/statistics.md) |
-| 状态 | 待评审；接口契约未确认 |
+| 状态 | P0 已实现（Mock）；接口契约未确认 |
 
 > 约定：文中「设计稿」指上述当前版 Stitch 浅色稿的实际像素、文案与交互脚本；「建议」表示本文档提出的、设计稿未覆盖但实现需要的规则，需产品确认。
 > 设计稿的示例数据存在若干自相矛盾或与全站口径不一致之处（见 §13.1），本文档以「口径定义」为准，不以示例数字反推规则。
@@ -948,3 +948,4 @@ GET /api/v1/stats/recent
 | 版本 | 日期 | 变更 |
 | --- | --- | --- |
 | v0.1 | 2026-11-14 | 首版：基于 Stitch「统计与能耗深度分析页（联动与走势优化版）」定义统计 Tab 的范围、模块、口径、接口草案与验收清单；明确周期与趋势粒度的关系、全部车辆规则与设计稿矛盾处理 |
+| v0.2 | 2026-11-14 | P0 已按本稿以 Mock 数据实现；技术实施差异见 [技术方案 §16](../technical/statistics.md) |

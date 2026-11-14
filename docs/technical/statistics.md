@@ -6,8 +6,8 @@
 | 设计稿 | [Stitch · 统计与能耗深度分析页（联动与走势优化版）](https://stitch.google.com/projects/9615374848161425677?node-id=eca4e1e065c94589b5cb5d2fdece1540) |
 | 客户端 | Flutter 3.50.0 stable / Dart 3.14 |
 | 平台 | Android（arm64 优先）、iOS |
-| 文档版本 | v0.1（技术方案初稿） |
-| 状态 | 待评审；接口契约未定稿，客户端按 Mock 先行 |
+| 文档版本 | v0.2（M0–M4 已实施，Mock 数据） |
+| 状态 | P0 已实现；接口契约未定稿，等待后端接入 |
 
 > 本文档基于**仓库当前实现**编写：首页、账单、单笔详情、月度报表已落地；统计 Tab 仍是 `AppTabShell` 中的 `_ComingSoonTab`，index = 2。所有新增目录、文件与重构均为拟实施内容，按 `feat/statistics-page` 分支推进。
 > 依赖现状：`material_ui`、`flutter_riverpod ^3.5.0`、`fl_chart ^1.3.1`、`intl ^0.20.3`、`pdf`、`printing`、`share_plus`、`path_provider`。本页**不新增第三方依赖**。
@@ -1878,14 +1878,93 @@ ref.read(appTabProvider.notifier).select(AppTab.ledger);
 
 ---
 
-## 16. 实施记录（待补充）
+## 16. 实施记录（v0.2）
 
-本页尚未开始编码。M0–M4 完成后在此追加：
+### 16.1 落地范围
 
-- 实际落地的文件清单；
-- 与设计稿的差异（圆角、颜色、文案、图表细节）；
-- 测试与 CI 结果；
-- 遗留问题与下一迭代。
+已按 M0–M4 完成统计 Tab 的 **Mock 版本**，`AppTabShell` 的 index 2 由 `_ComingSoonTab` 替换为 `StatsPage`。真实接口、持久化缓存、离线与埋点尚未接入。
+
+### 16.2 实际落地的文件
+
+新增：
+
+```
+lib/app/tab.dart
+lib/core/domain/distance.dart
+lib/core/widgets/app_tab_header.dart
+lib/core/widgets/hero_wave_background.dart
+lib/core/widgets/progress_ring.dart
+lib/core/widgets/sparkline.dart
+lib/features/stats/data/stats_repository.dart
+lib/features/stats/data/stats_api.dart
+lib/features/stats/data/mock_stats_repository.dart
+lib/features/stats/domain/stats_models.dart
+lib/features/stats/domain/stats_period.dart
+lib/features/stats/domain/stats_aggregation.dart
+lib/features/stats/domain/stats_presenter.dart
+lib/features/stats/domain/providers.dart
+lib/features/stats/presentation/stats_page.dart
+lib/features/stats/presentation/stats_header.dart
+lib/features/stats/presentation/stats_vehicle_sheet.dart
+lib/features/stats/presentation/stats_period_bar.dart
+lib/features/stats/presentation/stats_hero_card.dart
+lib/features/stats/presentation/stats_energy_card.dart
+lib/features/stats/presentation/stats_maintenance_card.dart
+lib/features/stats/presentation/stats_trend_card.dart
+lib/features/stats/presentation/stats_trend_chart.dart
+lib/features/stats/presentation/stats_breakdown_card.dart
+lib/features/stats/presentation/stats_recent_records.dart
+test/stats/stats_period_test.dart
+test/stats/stats_aggregation_test.dart
+test/stats/stats_presenter_test.dart
+test/stats/mock_stats_repository_test.dart
+test/stats/stats_page_test.dart
+test/stats/stats_test_helpers.dart
+```
+
+修改：
+
+- `lib/app/tab_shell.dart`：Tab 状态上提、统计 Tab 懒加载、跨 Tab 跳转。
+- `lib/core/domain/enums.dart`：`MaintenanceStatus` 迁入 core，home 侧 re-export 不变。
+- `lib/core/widgets/app_bottom_nav.dart`、`app_tab_header.dart`：字号放大时钳制 / 缩放，避免 1.3 倍字号溢出。
+- `lib/features/home/presentation/widgets/{home_header,hero_card,consumption_card,maintenance_card}.dart`：改用 core 公共图元，视觉不变。
+- `lib/features/ledger/data/mock_ledger_repository.dart`：新增 `recordsBetween` / `firstRecordAt`。
+- `lib/features/report/domain/{report_models,report_aggregation}.dart`：里程来源改用 `core/domain/distance.dart`。
+- `test/widget_test.dart`：统计 Tab 的断言从占位页改为真实页面。
+
+### 16.3 与设计稿 / 方案的差异
+
+| 项 | 落地 | 说明 |
+| --- | --- | --- |
+| 卡片圆角 | 16px | 与首页 / 账单页一致，设计稿 32px 按全站现状收敛 |
+| 分类颜色 | `AppColors` | 保养琥珀、过路费紫、停车天蓝，不采用设计稿单页橙色 |
+| 周期历史回看 | 周 / 月 / 半年 / 年度全部支持 | 方案原列 P1，实际已落地；「全部」不可选锚点 |
+| 最近记录 | 已实现 | 方案列 P1，按周期内 3 条实现 |
+| 图例跳转 | 已实现 | 分类图例与「查看全部」均跳转账单 Tab 并带车辆 / 月份 / 分类 |
+| 趋势 1 年 X 轴 | 月标签 | 设计稿为季度节点；窗口仍为近 12 个月 |
+| 保养类型标签 | 按动力与进度推导 | `MockHomeRepository` 无保养类型字段：PHEV → 首保/小保，进度 > 70% → 大保养，其余小保养 |
+| 能耗迷你走势 | 周期内子窗口聚合 | PHEV / EV 用电耗，HEV / ICE 用油耗；全部车辆用能源成本 /km |
+| 全部车辆保养卡 | 展示最紧迫车辆 | 点击下钻到该车（P1）未实现 |
+| 网络与缓存 | 未接入 | `stats_api.dart` 仅定义契约；Mock 同步聚合，无 60s 缓存 / 离线提示 |
+| 全局记账失效 | 部分实现 | 最近记录进详情返回、下拉刷新会失效当前范围；M4 设想的 `expenseMutationTickProvider` 未接入 |
+| 深色模式 | 已适配 | 按 `AppPalette.dark` 推导，无正式深色稿 |
+
+### 16.4 测试与 CI
+
+- `flutter analyze`：0 issue。
+- `flutter test`：143 个用例全部通过，其中统计页 49 个（周期 10、聚合 18、presenter 7、Mock 仓库 6、Widget 8）。
+- Widget 覆盖：页面渲染、周期 / 趋势粒度联动、车辆切换、模块级错误、图表点按、图例跳转、最近记录跳转、1.3 倍字号。
+- 无障碍：Hero、能耗、保养、趋势图均提供合成语义标签；底部导航与顶部栏在 1.3 倍字号下钳制缩放。
+- CI：PR 阶段运行 `flutter analyze` 与 `flutter test`；合并 `main` 后由 `flutter-android.yml` 打包。
+- 本 PR 未新增依赖，`pubspec.yaml` / `pubspec.lock` 无变化。
+
+### 16.5 遗留
+
+1. `HttpStatsRepository` 与 `StatsRepositoryImpl` 的竞态 / 缓存 / 离线能力。
+2. 记账、编辑、删除后的全局失效事件。
+3. 全部车辆保养卡下钻与车辆删除回退。
+4. 真实中文字体下的截图核对与 golden 测试（测试环境仅验证布局，字形为 Ahem）。
+5. 「全部」范围数据量过大时的客户端降级策略（当前 Mock 限制最近 24 个月）。
 
 ---
 
@@ -1894,3 +1973,4 @@ ref.read(appTabProvider.notifier).select(AppTab.ledger);
 | 版本 | 日期 | 变更 |
 | --- | --- | --- |
 | v0.1 | 2026-11-14 | 首版技术方案：复用清单、M0 重构、数据模型、周期 / 聚合口径、趋势分桶与坐标轴、接口契约、Provider 设计、UI 与图表实现、测试与里程碑 |
+| v0.2 | 2026-11-14 | M0–M4 已实施（Mock）：补充实际文件清单、与设计稿差异、测试结果与遗留项 |

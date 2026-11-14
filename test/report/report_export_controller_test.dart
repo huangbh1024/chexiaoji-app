@@ -64,7 +64,7 @@ MonthlyReport buildMonthlyReportForTest() {
     totalCents: 128600,
     recordCount: 6,
     distanceKm: 2140,
-    distanceSource: ReportDistanceSource.odometer,
+    distanceSource: DistanceSource.odometer,
     days: 30,
     costPerKmCents: 60,
     energyKwh: 316.7,

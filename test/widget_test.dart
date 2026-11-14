@@ -75,12 +75,14 @@ void main() {
     expect(find.byIcon(Icons.light_mode_rounded), findsOneWidget);
   });
 
-  testWidgets('底部导航可以切换到占位页', (tester) async {
+  testWidgets('底部导航可以切换到统计页', (tester) async {
     await _pumpHome(tester);
 
     await tester.tap(find.text('统计'));
     await tester.pumpAndSettle();
-    expect(find.text('页面待接入'), findsOneWidget);
+    expect(find.text('数据统计'), findsOneWidget);
+    expect(find.textContaining('综合每公里成本'), findsOneWidget);
+    expect(find.text('花费趋势与开销走势'), findsOneWidget);
   });
 
   testWidgets('充电记录副指标显示充电单价', (tester) async {
@@ -92,10 +94,7 @@ void main() {
       const Offset(0, -220),
     );
     await tester.pumpAndSettle();
-    await tester.drag(
-      find.byType(CustomScrollView),
-      const Offset(0, -260),
-    );
+    await tester.drag(find.byType(CustomScrollView), const Offset(0, -260));
     await tester.pumpAndSettle();
 
     expect(find.textContaining('/kWh'), findsWidgets);

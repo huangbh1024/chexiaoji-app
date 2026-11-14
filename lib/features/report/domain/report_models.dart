@@ -1,6 +1,9 @@
 import 'package:material_ui/material_ui.dart';
 
+import '../../../core/domain/distance.dart';
 import '../../../core/domain/enums.dart';
+
+export '../../../core/domain/distance.dart';
 
 /// 报表范围：月份 + 车辆（null = 全部车辆）。
 ///
@@ -44,9 +47,6 @@ class ReportScope {
 
 /// 报表状态：当前月记录中，历史月已出账。
 enum ReportStatus { recording, issued }
-
-/// 月度里程来源，对应接口的 `distanceSource`。
-enum ReportDistanceSource { odometer, records, none }
 
 /// 报表分类分组，固定 6 组。
 enum ReportCategoryKey {
@@ -214,7 +214,7 @@ class MonthlyReport {
   final int totalCents;
   final int recordCount;
   final int distanceKm;
-  final ReportDistanceSource distanceSource;
+  final DistanceSource distanceSource;
   final int days;
   final int? costPerKmCents;
 
@@ -251,7 +251,7 @@ class MonthlyReport {
     int? totalCents,
     int? recordCount,
     int? distanceKm,
-    ReportDistanceSource? distanceSource,
+    DistanceSource? distanceSource,
     int? days,
     int? costPerKmCents,
     bool clearCostPerKm = false,

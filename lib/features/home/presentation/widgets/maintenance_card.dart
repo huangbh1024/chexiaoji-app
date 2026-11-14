@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -9,6 +7,7 @@ import '../../../../core/format/formatters.dart';
 import '../../domain/home_models.dart';
 import '../../domain/providers.dart';
 import '../../../../core/widgets/app_card.dart';
+import '../../../../core/widgets/progress_ring.dart';
 import '../../../../core/widgets/section_error.dart';
 import '../../../../core/widgets/skeleton_box.dart';
 
@@ -115,13 +114,11 @@ class _MaintenanceContent extends StatelessWidget {
                     duration: const Duration(milliseconds: 600),
                     curve: Curves.easeOutCubic,
                     builder: (context, value, child) {
-                      return CustomPaint(
-                        painter: _RingPainter(
-                          progress: value,
-                          color: accent,
-                          trackColor: palette.surfaceContainer,
-                          strokeWidth: 3.5,
-                        ),
+                      return ProgressRing(
+                        size: 44,
+                        progress: value,
+                        color: accent,
+                        trackColor: palette.surfaceContainer,
                       );
                     },
                   ),
@@ -248,58 +245,5 @@ class _MaintenanceSkeleton extends StatelessWidget {
         ],
       ),
     );
-  }
-}
-
-class _RingPainter extends CustomPainter {
-  _RingPainter({
-    required this.progress,
-    required this.color,
-    required this.trackColor,
-    required this.strokeWidth,
-  });
-
-  final double progress;
-  final Color color;
-  final Color trackColor;
-  final double strokeWidth;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height / 2);
-    final radius = math.min(size.width, size.height) / 2 - strokeWidth / 2 - 1;
-    final rect = Rect.fromCircle(center: center, radius: radius);
-
-    canvas.drawCircle(
-      center,
-      radius,
-      Paint()
-        ..color = trackColor
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = strokeWidth,
-    );
-
-    if (progress <= 0) {
-      return;
-    }
-    canvas.drawArc(
-      rect,
-      -math.pi / 2,
-      2 * math.pi * progress.clamp(0.0, 1.0),
-      false,
-      Paint()
-        ..color = color
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = strokeWidth
-        ..strokeCap = StrokeCap.round,
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant _RingPainter oldDelegate) {
-    return oldDelegate.progress != progress ||
-        oldDelegate.color != color ||
-        oldDelegate.trackColor != trackColor ||
-        oldDelegate.strokeWidth != strokeWidth;
   }
 }
