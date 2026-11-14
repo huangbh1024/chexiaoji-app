@@ -98,31 +98,44 @@ class ReportMonthPill extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 6),
-          InkWell(
-            onTap: () => _pickMonth(context),
-            borderRadius: BorderRadius.circular(999),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: palette.surfaceContainer,
-                borderRadius: BorderRadius.circular(999),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    '切换月份',
-                    style: AppTypography.labelMd.copyWith(
-                      color: palette.outline,
+          Semantics(
+            button: true,
+            label: '切换月份，当前 ${reportMonthTitle(scope.month)}',
+            child: InkWell(
+              onTap: () => _pickMonth(context),
+              borderRadius: BorderRadius.circular(999),
+              child: SizedBox(
+                height: 44,
+                child: Center(
+                  widthFactor: 1,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: palette.surfaceContainer,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          '切换月份',
+                          style: AppTypography.labelMd.copyWith(
+                            color: palette.outline,
+                          ),
+                        ),
+                        const SizedBox(width: 2),
+                        Icon(
+                          Icons.expand_more_rounded,
+                          size: 14,
+                          color: palette.outline,
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(width: 2),
-                  Icon(
-                    Icons.expand_more_rounded,
-                    size: 14,
-                    color: palette.outline,
-                  ),
-                ],
+                ),
               ),
             ),
           ),
@@ -177,7 +190,7 @@ class ReportVehicleChips extends ConsumerWidget {
     final vehiclesAsync = ref.watch(vehiclesProvider);
 
     return SizedBox(
-      height: 32,
+      height: 44,
       child: vehiclesAsync.when(
         loading: () => const Row(
           children: [
@@ -298,40 +311,51 @@ class _VehiclePill extends StatelessWidget {
         child: InkWell(
           onTap: onTap,
           borderRadius: BorderRadius.circular(999),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 150),
-            padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 7),
-            decoration: BoxDecoration(
-              color: selected ? palette.primary : palette.surface,
-              borderRadius: BorderRadius.circular(999),
-              border: Border.all(
-                color: selected
-                    ? palette.primary
-                    : palette.outlineVariant.withValues(alpha: 0.5),
-              ),
-              boxShadow: selected
-                  ? [
-                      BoxShadow(
-                        color: palette.primary.withValues(alpha: 0.25),
-                        blurRadius: 20,
-                        offset: const Offset(0, 8),
-                      ),
-                    ]
-                  : tokens.cardShadow,
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                leading,
-                const SizedBox(width: 6),
-                Text(
-                  label,
-                  style: AppTypography.labelMd.copyWith(
-                    color: selected ? palette.primaryText : palette.outline,
-                    fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
-                  ),
+          child: SizedBox(
+            height: 44,
+            child: Center(
+              widthFactor: 1,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 150),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 13,
+                  vertical: 7,
                 ),
-              ],
+                decoration: BoxDecoration(
+                  color: selected ? palette.primary : palette.surface,
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(
+                    color: selected
+                        ? palette.primary
+                        : palette.outlineVariant.withValues(alpha: 0.5),
+                  ),
+                  boxShadow: selected
+                      ? [
+                          BoxShadow(
+                            color: palette.primary.withValues(alpha: 0.25),
+                            blurRadius: 20,
+                            offset: const Offset(0, 8),
+                          ),
+                        ]
+                      : tokens.cardShadow,
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    leading,
+                    const SizedBox(width: 6),
+                    Text(
+                      label,
+                      style: AppTypography.labelMd.copyWith(
+                        color: selected ? palette.primaryText : palette.outline,
+                        fontWeight: selected
+                            ? FontWeight.w700
+                            : FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
         ),

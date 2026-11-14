@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:flutter/services.dart' show rootBundle;
+import 'package:material_ui/material_ui.dart' show IconData, Icons;
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
@@ -16,11 +17,13 @@ class ReportPdfFonts {
     required this.regular,
     required this.bold,
     required this.cjk,
+    required this.icons,
   });
 
   final pw.Font regular;
   final pw.Font bold;
   final pw.Font cjk;
+  final pw.Font icons;
 
   static Future<ReportPdfFonts>? _cached;
 
@@ -35,11 +38,15 @@ class ReportPdfFonts {
     final jakartaBold = await rootBundle.load(
       'assets/fonts/PlusJakartaSans-Bold.ttf',
     );
-    final cjk = await rootBundle.load('assets/fonts/DroidSansFallbackFull.ttf');
+    final cjk = await rootBundle.load('assets/fonts/DroidSansFallback.ttf');
+    final icons = await rootBundle.load(
+      'assets/fonts/MaterialIcons-Subset.ttf',
+    );
     return ReportPdfFonts(
       regular: pw.Font.ttf(jakartaRegular),
       bold: pw.Font.ttf(jakartaBold),
       cjk: pw.Font.ttf(cjk),
+      icons: pw.Font.ttf(icons),
     );
   }
 }
@@ -106,19 +113,43 @@ class _ReportDocument {
   final ReportOptions options;
   final ReportPdfFonts fonts;
 
-  pw.TextStyle style({
+  static final RegExp _cjkPattern = RegExp(r'[　-〿一-鿿＀-￯]');
+
+  pw.TextStyle style(
+    String text, {
     double size = 9,
     bool bold = false,
     PdfColor color = _ink,
   }) {
+    final cjk = _cjkPattern.hasMatch(text);
     return pw.TextStyle(
-      font: bold ? fonts.bold : fonts.regular,
-      fontFallback: [fonts.cjk],
+      // PDF 的字宽测量只看主字体：中文必须把 CJK 设为 font 而不是只放进
+      // fontFallback，否则量到的宽度偏小、紧挨着的内容会被裁切。
+      font: cjk ? fonts.cjk : (bold ? fonts.bold : fonts.regular),
+      fontFallback: cjk ? [bold ? fonts.bold : fonts.regular] : [fonts.cjk],
       fontSize: size,
       color: color,
       lineSpacing: 2,
     );
   }
+
+  pw.Widget _icon(
+    IconData icon, {
+    required double size,
+    PdfColor color = _greenText,
+  }) {
+    return pw.Text(
+      String.fromCharCode(icon.codePoint),
+      style: pw.TextStyle(font: fonts.icons, fontSize: size, color: color),
+    );
+  }
+
+  IconData _trendIcon(TrendDirection trend) => switch (trend) {
+    TrendDirection.up => Icons.trending_up_rounded,
+    TrendDirection.down => Icons.trending_down_rounded,
+    TrendDirection.flat => Icons.trending_flat_rounded,
+    TrendDirection.none => Icons.remove_rounded,
+  };
 
   pw.Widget build() {
     return pw.Column(
@@ -160,18 +191,18 @@ class _ReportDocument {
                         ),
                       ),
                       pw.SizedBox(width: 4),
-                      pw.Text('车小记', style: style(size: 15, bold: true)),
+                      pw.Text('车小记', style: style('车小记', size: 15, bold: true)),
                       pw.SizedBox(width: 4),
                       pw.Text(
                         '· AUTO LEDGER',
-                        style: style(size: 7, color: _muted),
+                        style: style('· AUTO LEDGER', size: 7, color: _muted),
                       ),
                     ],
                   ),
                   pw.SizedBox(height: 2),
                   pw.Text(
                     '用车开销与能耗综合月度分析报告',
-                    style: style(size: 9, color: _muted),
+                    style: style('用车开销与能耗综合月度分析报告', size: 9, color: _muted),
                   ),
                 ],
               ),
@@ -180,9 +211,15 @@ class _ReportDocument {
             pw.Column(
               crossAxisAlignment: pw.CrossAxisAlignment.end,
               children: [
-                pw.Text('生成单号', style: style(size: 7, color: _muted)),
-                pw.Text(report.reportNo, style: style(size: 9, bold: true)),
-                pw.Text(report.dateLine, style: style(size: 7, color: _muted)),
+                pw.Text('生成单号', style: style('生成单号', size: 7, color: _muted)),
+                pw.Text(
+                  report.reportNo,
+                  style: style(report.reportNo, size: 9, bold: true),
+                ),
+                pw.Text(
+                  report.dateLine,
+                  style: style(report.dateLine, size: 7, color: _muted),
+                ),
               ],
             ),
           ],
@@ -220,15 +257,14 @@ class _ReportDocument {
               color: _badgeFill,
               borderRadius: pw.BorderRadius.circular(8),
             ),
-            child: pw.SizedBox(
-              width: 18,
-              height: 18,
-              child: pw.CustomPaint(
-                size: PdfPoint(18, 18),
-                painter: (canvas, size) => isAll
-                    ? _paintGarageIcon(canvas, size, badgeColor)
-                    : _paintCarIcon(canvas, size, badgeColor),
-              ),
+            child: _icon(
+              isAll
+                  ? Icons.garage_rounded
+                  : vehicles.isEmpty
+                  ? Icons.directions_car_rounded
+                  : reportPowertrainIcon(vehicles.single.powertrain),
+              size: 18,
+              color: badgeColor,
             ),
           ),
           pw.SizedBox(width: 9),
@@ -241,7 +277,7 @@ class _ReportDocument {
                     pw.Flexible(
                       child: pw.Text(
                         report.vehicleTitle,
-                        style: style(size: 13, bold: true),
+                        style: style(report.vehicleTitle, size: 13, bold: true),
                         maxLines: 1,
                       ),
                     ),
@@ -258,7 +294,7 @@ class _ReportDocument {
                         ),
                         child: pw.Text(
                           plate,
-                          style: style(size: 7, color: _muted),
+                          style: style(plate, size: 7, color: _muted),
                         ),
                       ),
                     ],
@@ -267,7 +303,7 @@ class _ReportDocument {
                 pw.SizedBox(height: 2),
                 pw.Text(
                   report.vehicleSubtitle,
-                  style: style(size: 8, color: _muted),
+                  style: style(report.vehicleSubtitle, size: 8, color: _muted),
                   maxLines: 1,
                 ),
               ],
@@ -277,10 +313,14 @@ class _ReportDocument {
           pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.end,
             children: [
-              pw.Text('累计总里程', style: style(size: 7, color: _muted)),
+              pw.Text('累计总里程', style: style('累计总里程', size: 7, color: _muted)),
               pw.Text(
                 vehicles.isEmpty ? '—' : formatKm(report.totalOdometerKm),
-                style: style(size: 9, bold: true),
+                style: style(
+                  vehicles.isEmpty ? '—' : formatKm(report.totalOdometerKm),
+                  size: 9,
+                  bold: true,
+                ),
               ),
             ],
           ),
@@ -342,11 +382,16 @@ class _ReportDocument {
       child: pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
-          pw.Text(label, style: style(size: 8, color: _muted)),
+          pw.Text(label, style: style(label, size: 8, color: _muted)),
           pw.SizedBox(height: 2),
           pw.Text(
             value,
-            style: style(size: 16, bold: true, color: valueColor ?? _ink),
+            style: style(
+              value,
+              size: 16,
+              bold: true,
+              color: valueColor ?? _ink,
+            ),
             maxLines: 1,
           ),
           pw.SizedBox(height: 3),
@@ -359,7 +404,7 @@ class _ReportDocument {
   pw.Widget _noteText(String text, {PdfColor color = _muted}) {
     return pw.Text(
       text,
-      style: style(size: 7.5, color: color),
+      style: style(text, size: 7.5, color: color),
       maxLines: 2,
     );
   }
@@ -381,14 +426,7 @@ class _ReportDocument {
 
     return pw.Row(
       children: [
-        pw.SizedBox(
-          width: 11,
-          height: 11,
-          child: pw.CustomPaint(
-            size: PdfPoint(11, 11),
-            painter: (canvas, size) => _paintTrendIcon(canvas, size, trend, color),
-          ),
-        ),
+        _icon(_trendIcon(trend), size: 10, color: color),
         pw.SizedBox(width: 2),
         pw.Flexible(child: _noteText(text, color: color)),
       ],
@@ -419,7 +457,7 @@ class _ReportDocument {
         children: [
           pw.Row(
             children: [
-              pw.Text('每日开销走势', style: style(size: 8.5, bold: true)),
+              pw.Text('每日开销走势', style: style('每日开销走势', size: 8.5, bold: true)),
               pw.Spacer(),
               _legendDot('充电动能', _green),
               pw.SizedBox(width: 8),
@@ -433,7 +471,7 @@ class _ReportDocument {
               child: pw.Center(
                 child: pw.Text(
                   '本月暂无开支数据',
-                  style: style(size: 8, color: _muted),
+                  style: style('本月暂无开支数据', size: 8, color: _muted),
                 ),
               ),
             )
@@ -464,6 +502,8 @@ class _ReportDocument {
                     '${points[index].date.month}/${points[index].date.day}'
                     '${index == peakIndex && points[index].dominantCategory != null ? ' (${points[index].dominantCategory!.label})' : ''}',
                     style: style(
+                      '${points[index].date.month}/${points[index].date.day}'
+                      '${index == peakIndex && points[index].dominantCategory != null ? ' (${points[index].dominantCategory!.label})' : ''}',
                       size: 6.5,
                       color: index == peakIndex ? _orange : _muted,
                     ),
@@ -484,165 +524,9 @@ class _ReportDocument {
           decoration: pw.BoxDecoration(color: color, shape: pw.BoxShape.circle),
         ),
         pw.SizedBox(width: 3),
-        pw.Text(label, style: style(size: 7, color: _muted)),
+        pw.Text(label, style: style(label, size: 7, color: _muted)),
       ],
     );
-  }
-
-  /// 车辆信息条左侧图标：单车画车，多车画车库。
-  void _paintCarIcon(PdfGraphics canvas, PdfPoint size, PdfColor color) {
-    final w = size.x;
-    final h = size.y;
-    canvas
-      ..setStrokeColor(color)
-      ..setFillColor(_badgeFill)
-      ..setLineWidth(1.25)
-      ..setLineJoin(PdfLineJoin.round);
-
-    // 车身
-    canvas
-      ..moveTo(w * 0.08, h * 0.60)
-      ..lineTo(w * 0.18, h * 0.44)
-      ..lineTo(w * 0.30, h * 0.36)
-      ..lineTo(w * 0.66, h * 0.36)
-      ..lineTo(w * 0.82, h * 0.46)
-      ..lineTo(w * 0.92, h * 0.60)
-      ..lineTo(w * 0.92, h * 0.74)
-      ..lineTo(w * 0.84, h * 0.74)
-      ..moveTo(w * 0.34, h * 0.74)
-      ..lineTo(w * 0.20, h * 0.74)
-      ..lineTo(w * 0.08, h * 0.74)
-      ..lineTo(w * 0.08, h * 0.60)
-      ..strokePath();
-
-    // 车窗分隔线
-    canvas
-      ..moveTo(w * 0.30, h * 0.43)
-      ..lineTo(w * 0.64, h * 0.43)
-      ..strokePath();
-
-    // 车轮：先填充底色再描边，避免被车身线条穿过。
-    for (final x in <double>[w * 0.27, w * 0.73]) {
-      canvas
-        ..setFillColor(_badgeFill)
-        ..drawEllipse(x, h * 0.74, w * 0.09, h * 0.09)
-        ..fillPath()
-        ..setStrokeColor(color)
-        ..drawEllipse(x, h * 0.74, w * 0.09, h * 0.09)
-        ..strokePath();
-    }
-  }
-
-  void _paintGarageIcon(PdfGraphics canvas, PdfPoint size, PdfColor color) {
-    final w = size.x;
-    final h = size.y;
-    canvas
-      ..setStrokeColor(color)
-      ..setLineWidth(1.25)
-      ..setLineJoin(PdfLineJoin.round);
-
-    // 屋顶
-    canvas
-      ..moveTo(w * 0.08, h * 0.44)
-      ..lineTo(w * 0.50, h * 0.10)
-      ..lineTo(w * 0.92, h * 0.44)
-      ..strokePath();
-    // 墙体
-    canvas
-      ..moveTo(w * 0.18, h * 0.44)
-      ..lineTo(w * 0.18, h * 0.90)
-      ..lineTo(w * 0.82, h * 0.90)
-      ..lineTo(w * 0.82, h * 0.44)
-      ..strokePath();
-    // 车库门
-    canvas
-      ..moveTo(w * 0.34, h * 0.90)
-      ..lineTo(w * 0.34, h * 0.58)
-      ..lineTo(w * 0.66, h * 0.58)
-      ..lineTo(w * 0.66, h * 0.90)
-      ..moveTo(w * 0.34, h * 0.68)
-      ..lineTo(w * 0.66, h * 0.68)
-      ..moveTo(w * 0.34, h * 0.78)
-      ..lineTo(w * 0.66, h * 0.78)
-      ..strokePath();
-  }
-
-  /// 环比箭头，和预览里的 trending_up / down / flat 对应。
-  void _paintTrendIcon(
-    PdfGraphics canvas,
-    PdfPoint size,
-    TrendDirection trend,
-    PdfColor color,
-  ) {
-    final w = size.x;
-    final h = size.y;
-    canvas
-      ..setStrokeColor(color)
-      ..setLineWidth(1.2)
-      ..setLineJoin(PdfLineJoin.round);
-
-    if (trend == TrendDirection.flat) {
-      canvas
-        ..moveTo(w * 0.12, h * 0.52)
-        ..lineTo(w * 0.88, h * 0.52)
-        ..strokePath();
-      return;
-    }
-
-    final up = trend == TrendDirection.up;
-    final points = up
-        ? <PdfPoint>[
-            PdfPoint(w * 0.10, h * 0.82),
-            PdfPoint(w * 0.36, h * 0.56),
-            PdfPoint(w * 0.58, h * 0.72),
-            PdfPoint(w * 0.88, h * 0.28),
-          ]
-        : <PdfPoint>[
-            PdfPoint(w * 0.10, h * 0.18),
-            PdfPoint(w * 0.36, h * 0.44),
-            PdfPoint(w * 0.58, h * 0.28),
-            PdfPoint(w * 0.88, h * 0.72),
-          ];
-    canvas.moveTo(points.first.x, points.first.y);
-    for (final point in points.skip(1)) {
-      canvas.lineTo(point.x, point.y);
-    }
-    canvas.strokePath();
-
-    final tip = points.last;
-    canvas
-      ..moveTo(w * 0.66, tip.y)
-      ..lineTo(tip.x, tip.y)
-      ..lineTo(tip.x, h * 0.50)
-      ..strokePath();
-  }
-
-  void _paintVerifyIcon(PdfGraphics canvas, PdfPoint size, bool verified) {
-    final w = size.x;
-    final h = size.y;
-    final color = verified ? _greenText : _muted;
-    canvas
-      ..setStrokeColor(color)
-      ..setFillColor(color)
-      ..setLineWidth(0.9)
-      ..setLineJoin(PdfLineJoin.round)
-      ..drawEllipse(w / 2, h / 2, w * 0.44, h * 0.44)
-      ..strokePath();
-
-    if (verified) {
-      canvas
-        ..moveTo(w * 0.26, h * 0.52)
-        ..lineTo(w * 0.44, h * 0.68)
-        ..lineTo(w * 0.74, h * 0.34)
-        ..strokePath();
-    } else {
-      canvas
-        ..moveTo(w * 0.5, h * 0.28)
-        ..lineTo(w * 0.5, h * 0.58)
-        ..strokePath()
-        ..drawEllipse(w * 0.5, h * 0.76, w * 0.06, h * 0.06)
-        ..fillPath();
-    }
   }
 
   void _paintChart(
@@ -707,18 +591,19 @@ class _ReportDocument {
       for (var index = 0; index < points.length; index++)
         PdfPoint(
           points.length <= 1 ? 0 : width * index / (points.length - 1),
-          height - (pick(points[index]) / maxY).clamp(0, 1) * height,
+          // PDF 坐标原点在左下角，数值越大 y 越大。
+          (pick(points[index]) / maxY).clamp(0, 1) * height,
         ),
     ];
 
     if (fillColor != null) {
       canvas
         ..setFillColor(fillColor)
-        ..moveTo(coords.first.x, height)
+        ..moveTo(coords.first.x, 0)
         ..lineTo(coords.first.x, coords.first.y);
       _appendCurve(canvas, coords);
       canvas
-        ..lineTo(coords.last.x, height)
+        ..lineTo(coords.last.x, 0)
         ..closePath()
         ..fillPath();
     }
@@ -783,11 +668,18 @@ class _ReportDocument {
       children: [
         pw.Row(
           children: [
-            pw.Text('分类支出核算明细', style: style(size: 8.5, bold: true)),
+            pw.Text(
+              '分类支出核算明细',
+              style: style('分类支出核算明细', size: 8.5, bold: true),
+            ),
             pw.Spacer(),
             pw.Text(
               '共 ${report.recordCount} 笔收支',
-              style: style(size: 7.5, color: _muted),
+              style: style(
+                '共 ${report.recordCount} 笔收支',
+                size: 7.5,
+                color: _muted,
+              ),
             ),
           ],
         ),
@@ -813,7 +705,10 @@ class _ReportDocument {
         ),
         pw.SizedBox(height: 6),
         if (groups.isEmpty)
-          pw.Text('本月暂无可核算支出', style: style(size: 8, color: _muted))
+          pw.Text(
+            '本月暂无可核算支出',
+            style: style('本月暂无可核算支出', size: 8, color: _muted),
+          )
         else
           ...rows,
       ],
@@ -837,10 +732,14 @@ class _ReportDocument {
         ),
         pw.SizedBox(width: 4),
         pw.Expanded(
-          child: pw.Text(group.label, style: style(size: 7.5), maxLines: 1),
+          child: pw.Text(
+            group.label,
+            style: style(group.label, size: 7.5),
+            maxLines: 1,
+          ),
         ),
         pw.SizedBox(width: 4),
-        pw.Text(amount, style: style(size: 7.5, color: _muted)),
+        pw.Text(amount, style: style(amount, size: 7.5, color: _muted)),
       ],
     );
   }
@@ -855,6 +754,7 @@ class _ReportDocument {
   };
 
   pw.Widget _footer() {
+    final meta = report.footerMetaText(maskPlate: options.maskPlate);
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.stretch,
       children: [
@@ -862,33 +762,32 @@ class _ReportDocument {
         pw.SizedBox(height: 6),
         pw.Row(
           children: [
-            pw.SizedBox(
-              width: 9,
-              height: 9,
-              child: pw.CustomPaint(
-                size: PdfPoint(9, 9),
-                painter: (canvas, size) => _paintVerifyIcon(
-                  canvas,
-                  size,
-                  report.verified,
-                ),
-              ),
+            _icon(
+              report.verified
+                  ? Icons.verified_rounded
+                  : Icons.info_outline_rounded,
+              size: 9,
+              color: report.verified ? _greenText : _muted,
             ),
             pw.SizedBox(width: 4),
             pw.Expanded(
               child: pw.Text(
                 report.verificationText,
-                style: style(size: 7.5, color: _greenText),
+                style: style(
+                  report.verificationText,
+                  size: 7.5,
+                  color: _greenText,
+                ),
                 maxLines: 1,
               ),
             ),
             pw.Container(
-              padding: const pw.EdgeInsets.symmetric(
-                horizontal: 6,
-                vertical: 2,
-              ),
+              width: 82,
+              height: 15,
+              alignment: pw.Alignment.center,
+              padding: const pw.EdgeInsets.symmetric(horizontal: 7),
               decoration: pw.BoxDecoration(
-                borderRadius: pw.BorderRadius.circular(20),
+                borderRadius: pw.BorderRadius.circular(7.5),
                 border: pw.Border.all(
                   color: const PdfColor.fromInt(0x4D006C4B),
                   width: 0.7,
@@ -896,13 +795,25 @@ class _ReportDocument {
               ),
               child: pw.Text(
                 '车小记 · 月度报表',
-                style: style(size: 7, color: _greenText),
+                style: style('车小记 · 月度报表', size: 7, color: _greenText),
+                maxLines: 1,
               ),
             ),
           ],
         ),
         pw.SizedBox(height: 4),
-        pw.Text('本报表由车小记生成 · 仅供个人对账使用', style: style(size: 6.5, color: _muted)),
+        if (meta.isNotEmpty) ...[
+          pw.Text(
+            meta,
+            style: style(meta, size: 6.5, color: _muted),
+            maxLines: 1,
+          ),
+          pw.SizedBox(height: 2),
+        ],
+        pw.Text(
+          '本报表由车小记生成 · 仅供个人对账使用',
+          style: style('本报表由车小记生成 · 仅供个人对账使用', size: 6.5, color: _muted),
+        ),
       ],
     );
   }

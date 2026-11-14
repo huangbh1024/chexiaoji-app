@@ -4,6 +4,10 @@ Droid Sans Fallback
 This font is used only for generating Chinese text in exported PDF reports.
 It is distributed under the Apache License, Version 2.0.
 
+The file checked in here is a glyph subset of the original Droid Sans Fallback
+(Latin is rendered with Plus Jakarta Sans, so this font only carries CJK
+punctuation and the CJK Unified Ideographs block U+4E00-9FFF).
+
 Source:
 https://github.com/aosp-mirror/platform_frameworks_base/tree/master/data/fonts
 

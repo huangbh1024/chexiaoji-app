@@ -65,6 +65,8 @@ class ReportBottomDock extends StatelessWidget {
               Text(
                 disabledReason ?? '支持 AirDrop隔空投送 · 微信文件传输 · 邮件发送与本地留存',
                 textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
                 style: AppTypography.bodySm.copyWith(
                   color: disabledReason == null
                       ? palette.outline

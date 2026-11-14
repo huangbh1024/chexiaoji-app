@@ -1,10 +1,13 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:isolate';
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:printing/printing.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../../ledger/domain/ledger_models.dart';
 import '../data/report_repository.dart';
 import '../domain/report_models.dart';
 import 'report_csv_builder.dart';
@@ -24,10 +27,22 @@ class ReportExportException implements Exception {
   String toString() => 'ReportExportException: $message';
 }
 
+/// 长图渲染回调：由页面把纸张 Widget 渲染成 PNG，导出层只负责落盘。
+typedef ReportPosterCapture = Future<Uint8List> Function(
+  MonthlyReport report,
+  ReportOptions options,
+);
+
 abstract class ReportExporter {
   Future<File> buildPdf(MonthlyReport report, ReportOptions options);
 
   Future<File> buildCsv(MonthlyReport report, ReportOptions options);
+
+  Future<File> buildImage(
+    MonthlyReport report,
+    ReportOptions options,
+    Uint8List bytes,
+  );
 
   Future<void> share(File file, {String? subject});
 
@@ -56,17 +71,42 @@ class DefaultReportExporter implements ReportExporter {
   Future<File> buildCsv(MonthlyReport report, ReportOptions options) async {
     try {
       final records = await repository.fetchAllRecords(report.scope);
-      final csv = buildReportCsv(
-        report: report,
-        records: records,
-        options: options,
-      );
+      final csv = await _buildCsvText(report, records, options);
       return await _files.write(
         _files.csvFileName(report),
         Uint8List.fromList(utf8.encode(csv)),
       );
     } catch (error) {
       throw ReportExportException('CSV 生成失败', error);
+    }
+  }
+
+  /// 明细超过 3000 条时放到后台 isolate，避免阻塞页面动画。
+  Future<String> _buildCsvText(
+    MonthlyReport report,
+    List<LedgerRecord> records,
+    ReportOptions options,
+  ) {
+    if (kIsWeb || records.length <= 3000) {
+      return Future.value(
+        buildReportCsv(report: report, records: records, options: options),
+      );
+    }
+    return Isolate.run(
+      () => buildReportCsv(report: report, records: records, options: options),
+    );
+  }
+
+  @override
+  Future<File> buildImage(
+    MonthlyReport report,
+    ReportOptions options,
+    Uint8List bytes,
+  ) async {
+    try {
+      return await _files.write(_files.imageFileName(report), bytes);
+    } catch (error) {
+      throw ReportExportException('长图保存失败', error);
     }
   }
 
