@@ -10,6 +10,8 @@ class MockLedgerRepository implements LedgerRepository {
   final Duration delay;
 
   final Map<String, List<LedgerRecord>> _monthCache = {};
+  final Map<String, LedgerRecord> _idIndex = {};
+  final Set<String> _deletedIds = {};
 
   @override
   Future<LedgerMonthSummary> fetchSummary(LedgerScope scope) async {
@@ -17,6 +19,7 @@ class MockLedgerRepository implements LedgerRepository {
     final now = DateTime.now();
     final month = DateTime(scope.month.year, scope.month.month);
     final records = _recordsFor(month)
+        .where((record) => !_deletedIds.contains(record.id))
         .where(
           (record) =>
               scope.vehicleId == null || record.vehicleId == scope.vehicleId,
@@ -44,10 +47,12 @@ class MockLedgerRepository implements LedgerRepository {
 
     final previousMonth = DateTime(month.year, month.month - 1);
     final previousTotal = _sum(
-      _recordsFor(previousMonth).where(
-        (record) =>
-            scope.vehicleId == null || record.vehicleId == scope.vehicleId,
-      ),
+      _recordsFor(previousMonth)
+          .where((record) => !_deletedIds.contains(record.id))
+          .where(
+            (record) =>
+                scope.vehicleId == null || record.vehicleId == scope.vehicleId,
+          ),
     );
 
     final momPercent = previousTotal == 0
@@ -94,6 +99,7 @@ class MockLedgerRepository implements LedgerRepository {
   }) async {
     await Future<void>.delayed(delay);
     final records = _recordsFor(DateTime(query.month.year, query.month.month))
+        .where((record) => !_deletedIds.contains(record.id))
         .where(
           (record) =>
               query.vehicleId == null || record.vehicleId == query.vehicleId,
@@ -135,6 +141,36 @@ class MockLedgerRepository implements LedgerRepository {
       hasMore: hasMore,
       nextCursor: hasMore ? end.toString() : null,
     );
+  }
+
+  /// 按 id 查找记录：先查索引，再回扫最近 24 个月。
+  ///
+  /// 已删除的记录返回 null。
+  LedgerRecord? recordById(String id) {
+    if (_deletedIds.contains(id)) {
+      return null;
+    }
+    final cached = _idIndex[id];
+    if (cached != null) {
+      return cached;
+    }
+    final now = DateTime.now();
+    for (var i = 0; i < 24; i++) {
+      final month = DateTime(now.year, now.month - i);
+      for (final record in _recordsFor(month)) {
+        if (record.id == id) {
+          _idIndex[id] = record;
+          return record;
+        }
+      }
+    }
+    return null;
+  }
+
+  /// 标记记录已删除，后续列表 / 汇总 / 详情都不再返回。
+  void markDeleted(String id) {
+    _deletedIds.add(id);
+    _idIndex.remove(id);
   }
 
   List<LedgerRecord> _recordsFor(DateTime month) {
@@ -259,6 +295,7 @@ class MockLedgerRepository implements LedgerRepository {
           metrics: LedgerMetrics(
             durationMinutes: 210,
             plate: _vehicles.first.plate,
+            paymentMethod: '无感支付',
           ),
           statusText: '${(parkingTime.hour + 3) % 24}:45 离场',
         ),
@@ -369,6 +406,7 @@ class MockLedgerRepository implements LedgerRepository {
           metrics: LedgerMetrics(
             durationMinutes: duration,
             plate: vehicle.plate,
+            paymentMethod: '无感支付',
           ),
           statusText:
               '${departure.hour.toString().padLeft(2, '0')}:'
@@ -388,6 +426,7 @@ class MockLedgerRepository implements LedgerRepository {
           badgeText: vehicle.shortName,
           badgeKind: LedgerBadgeKind.vehicle,
           description: _tollDescriptions[random.next(_tollDescriptions.length)],
+          metrics: const LedgerMetrics(paymentMethod: 'ETC'),
           statusText: '粤通卡ETC',
         );
       case ExpenseCategory.carWash:
@@ -405,6 +444,7 @@ class MockLedgerRepository implements LedgerRepository {
           badgeKind: LedgerBadgeKind.vehicle,
           description:
               _carWashDescriptions[random.next(_carWashDescriptions.length)],
+          metrics: const LedgerMetrics(paymentMethod: '微信'),
           statusText: '微信支付',
         );
       case ExpenseCategory.other:
@@ -422,6 +462,7 @@ class MockLedgerRepository implements LedgerRepository {
           badgeKind: LedgerBadgeKind.vehicle,
           description:
               _otherDescriptions[random.next(_otherDescriptions.length)],
+          metrics: const LedgerMetrics(paymentMethod: '支付宝'),
           statusText: '支付宝',
         );
     }
@@ -450,6 +491,7 @@ class MockLedgerRepository implements LedgerRepository {
         kwh: kwh,
         odometerKm: vehicle.odometerKm - id.hashCode.abs() % 4000,
         distanceKm: 180 + id.hashCode.abs() % 420,
+        paymentMethod: '微信',
       ),
     );
   }
@@ -477,6 +519,7 @@ class MockLedgerRepository implements LedgerRepository {
         liters: liters,
         odometerKm: vehicle.odometerKm - time.day * 37,
         distanceKm: 220 + (id ?? time.day.toString()).hashCode.abs() % 480,
+        paymentMethod: '云闪付',
       ),
     );
   }
@@ -501,6 +544,7 @@ class MockLedgerRepository implements LedgerRepository {
       badgeText: vehicle.shortName,
       badgeKind: LedgerBadgeKind.vehicle,
       description: project,
+      metrics: const LedgerMetrics(paymentMethod: '支付宝'),
       statusText: '工单已归档',
     );
   }

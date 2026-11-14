@@ -7,8 +7,12 @@ import 'ledger_grouping.dart';
 import 'ledger_models.dart';
 
 /// 静态阶段使用本地 Mock；接入接口时替换这里的实现。
-final ledgerRepositoryProvider = Provider<LedgerRepository>(
+final mockLedgerRepositoryProvider = Provider<MockLedgerRepository>(
   (ref) => MockLedgerRepository(),
+);
+
+final ledgerRepositoryProvider = Provider<LedgerRepository>(
+  (ref) => ref.watch(mockLedgerRepositoryProvider),
 );
 
 /// 当前筛选：月份 / 车辆 / 分类 / 排序。

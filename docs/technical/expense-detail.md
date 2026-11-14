@@ -1057,7 +1057,35 @@ await SharePlus.instance.share(ShareParams(text: buildExpenseShareText(detail)))
 
 ---
 
-## 16. 变更记录
+## 16. 实施记录（v0.3）
+
+| 层 | 落地文件 |
+| --- | --- |
+| 模型 / 规则 | `expense_detail_models.dart`、`expense_detail_presenter.dart` |
+| 数据 | `expense_detail_repository.dart`、`mock_expense_detail_repository.dart`、`MockLedgerRepository.recordById / markDeleted` |
+| 状态 | `providers.dart`（`AsyncNotifierProvider.autoDispose.family` + 备注 / 标签乐观更新 + 删除失效） |
+| 页面 / 组件 | `expense_detail_page.dart`、`detail_header.dart`、`detail_hero_card.dart`、`detail_vehicle_card.dart`、`detail_settlement_card.dart`、`detail_tags_note_card.dart`、`detail_bottom_bar.dart` |
+| 浮层 | `detail_more_sheet.dart`、`note_editor_sheet.dart`、`tag_editor_sheet.dart`、`delete_expense_sheet.dart` |
+| 入口 | `ledger_page.dart` 记录卡点击 → `ExpenseDetailPage`，返回后刷新 |
+
+测试：
+
+- `test/expense_detail/expense_detail_models_test.dart`
+- `test/expense_detail/expense_detail_presenter_test.dart`
+- `test/expense_detail/mock_expense_detail_repository_test.dart`
+- `test/expense_detail/expense_detail_page_test.dart`
+- `test/ledger/mock_ledger_repository_record_by_id_test.dart`
+
+与方案的差异：
+
+- 详情接口未接，`expenseDetailRepositoryProvider` 仍返回 `MockExpenseDetailRepository`。
+- 支付渠道在详情未加载完时显示骨架，不显示「未记录」。
+- 「车辆管理」「记账页」仍为 Toast 占位，等待对应页面落地。
+- 未做富稿中的指标 / 对比 / 商户 / 导航 / 票据。
+
+---
+
+## 17. 变更记录
 
 | 版本 | 日期 | 说明 |
 | --- | --- | --- |

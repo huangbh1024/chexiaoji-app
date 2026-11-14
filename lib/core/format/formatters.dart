@@ -12,6 +12,16 @@ String formatYuanDetail(int cents) => '¥${_twoDecimals.format(cents / 100)}';
 /// 支出金额：带负号，例如 `-¥51.10`。
 String formatExpense(int cents) => '-${formatYuanDetail(cents)}';
 
+/// 带符号金额：支出 `-¥51.10`，退款 `+¥51.10`，零金额 `¥0.00`。
+String formatSignedYuan(int cents) {
+  if (cents == 0) {
+    return formatYuanDetail(0);
+  }
+  return cents < 0
+      ? '+${formatYuanDetail(cents.abs())}'
+      : '-${formatYuanDetail(cents)}';
+}
+
 /// 里程：千分位整数，例如 `18,426 km`。
 String formatKm(int km) => '${_thousands.format(km)} km';
 
@@ -41,6 +51,14 @@ const _weekdays = ['周一', '周二', '周三', '周四', '周五', '周六', '
   final text = _twoDecimals.format(cents.abs() / 100);
   final index = text.lastIndexOf('.');
   return (integer: text.substring(0, index), decimal: text.substring(index));
+}
+
+/// 交易时间到分钟，例如 `2025-05-16 13:28`。
+String formatDateTimeMinute(DateTime time) {
+  final t = time.toLocal();
+  String two(int value) => value.toString().padLeft(2, '0');
+  return '${t.year}-${two(t.month)}-${two(t.day)} '
+      '${two(t.hour)}:${two(t.minute)}';
 }
 
 /// 月份标签，例如 `2026年11月`。
