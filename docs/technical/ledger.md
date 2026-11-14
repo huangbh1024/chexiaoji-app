@@ -2,12 +2,12 @@
 
 | 项目 | 内容 |
 | --- | --- |
-| 关联需求 | [账单页需求文档 v0.1](../requirements/ledger.md) |
+| 关联需求 | [账单页需求文档 v0.2](../requirements/ledger.md) |
 | 设计稿 | [Stitch · 账单·明细与流水记录](https://stitch.google.com/projects/9615374848161425677?node-id=509df27d171c476ea2901ab6dbae2636) |
 | 客户端 | Flutter 3.50.0 stable / Dart 3.14 |
 | 平台 | Android（arm64 优先）、iOS |
-| 文档版本 | v0.1（技术方案初稿） |
-| 状态 | 待评审；接口契约以最终后端文档为准 |
+| 文档版本 | v0.2（M0–M3 已实施） |
+| 状态 | M0–M3 已实施；接口契约以最终后端文档为准 |
 
 > 本文档基于**仓库当前已有实现**（`lib/features/home/**` 已落地静态首页，依赖仅 `material_ui`、`flutter_riverpod`、`fl_chart`、`intl`）编写。所有新增目录、文件与重构均为拟实施内容，按 `feat/ledger-page` 分支推进。
 
@@ -266,7 +266,6 @@ class LedgerRecord {
     this.badgeKind = LedgerBadgeKind.none,
     this.metrics = const LedgerMetrics(),
     this.statusText,
-    this.costPerKmCents,
     this.note,
   });
   ...
@@ -316,14 +315,20 @@ extension LedgerRecordPresentation on LedgerRecord {
     return parts.isEmpty ? null : parts.join(' · ');
   }
 
-  /// 充电 / 加油的右副胶囊；null 时回退 statusText。
-  String? get costPillText => costPerKmCents == null
-      ? null
-      : '${formatYuanDetail(costPerKmCents!)}/km';
+  /// 充电 / 加油的单价胶囊；null 时回退 statusText。
+  String? get unitPricePillText => switch (category) {
+    ExpenseCategory.charging => metrics.kwh == null
+        ? null
+        : formatUnitPrice((amountCents / metrics.kwh!).round(), 'kWh'),
+    ExpenseCategory.fuel => metrics.liters == null
+        ? null
+        : formatUnitPrice((amountCents / metrics.liters!).round(), 'L'),
+    _ => null,
+  };
 }
 ```
 
-> 需求文档 §6.4 的字段矩阵与这里的拼装顺序一一对应；新增分类只改扩展，不改 Widget。若 Q3 确认改为单价胶囊，仅替换 `costPillText` 的取数（`amountCents / kwh`、`amountCents / liters`）。
+> 需求文档 §6.4 的字段矩阵与这里的拼装顺序一一对应；新增分类只改扩展，不改 Widget。Q3 已定稿：充电用 `¥/kWh`、加油用 `¥/L`，与首页「最近记录」一致，每公里成本不再出现在列表。
 
 ### 5.4 分组与行模型
 
@@ -787,7 +792,7 @@ String formatDayHeader(DateTime day, {DateTime? now}) {
 | 当月无记录 | 汇总 0 值 + 柱状图全底座 + 空态「本月还没有记录」 |
 | 筛选无结果 | 结果条 + 空态「没有符合条件的记录 / 清除筛选」 |
 | 上月无数据 | 环比显示「较上月 —」，不显示箭头 |
-| 里程 / 电量缺失 | 不显示对应副标题段与 `/km` 胶囊，不留空 `·` |
+| 里程 / 电量缺失 | 不显示对应副标题段与单价胶囊，不留空 `·` |
 | 金额为负（退款） | 显示正数并带「退款」标记，不计入支出笔数 |
 | 汇总失败 | 汇总卡独立重试，列表照常 |
 | 列表首屏失败 | 列表区错误 + 重试，汇总照常 |
@@ -853,6 +858,8 @@ String formatDayHeader(DateTime day, {DateTime? now}) {
 
 每个阶段保持 `flutter analyze` / `flutter test` 通过后合入功能分支；按仓库规范通过 PR 合并到 `main`。
 
+**当前进度**：M0（共享组件迁移 + `AppTabShell` 懒加载）、M1（静态账单页）与 M2–M3（筛选、分页、骨架 / 空态 / 错误态、竞态）已完成；M4 的入口联动、M5 的导出 / 筛选面板与深色核对待后续迭代。
+
 ---
 
 ## 13. 风险与待确认
@@ -860,7 +867,7 @@ String formatDayHeader(DateTime day, {DateTime? now}) {
 | 风险 | 影响 | 应对 |
 | --- | --- | --- |
 | 汇总与列表示例数据不自洽（Q1） | 验收时数字对不上 | 以本文档口径为准重造 Mock；接口字段固定为 `energyCents` / `serviceCents` |
-| `/km` 胶囊与首页单价不一致（Q3） | 跨页体验割裂 | presenter 只改一处；确认后统一切换 |
+| ~~`/km` 胶囊与首页单价不一致~~ | 已按 Q3 定稿统一为单价胶囊 | 已实现 `unitPricePillText` |
 | 分类枚举缺「洗车」、命名不统一（Q4） | 筛选与图标映射返工 | 先按 8 项实现，服务端 key 以 `ExpenseCategory` 为准 |
 | 设计稿无深色稿 | 深色视觉偏差 | 按 `AppPalette.dark` 推导并标注待核对 |
 | 月份选择器 / 筛选面板无设计 | 交互与视觉不统一 | 复用 BottomSheet 与 chip 样式，评审时确认 |
@@ -873,7 +880,7 @@ String formatDayHeader(DateTime day, {DateTime? now}) {
 待确认（与需求文档 §13 同步）：
 
 1. 维保服务口径与设计稿示例数据的修正。
-2. 费用胶囊用 `¥/km` 还是 `¥/kWh`、`¥/L`。
+2. ~~费用胶囊用 `¥/km` 还是 `¥/kWh`、`¥/L`~~（已定：单价胶囊）。
 3. 分类筛选项是否补齐「洗车」并与其他分类合并方式。
 4. 账单页车辆筛选是否与首页选中车辆联动。
 5. 筛选条件是否跨会话记忆。
@@ -900,3 +907,55 @@ String formatDayHeader(DateTime day, {DateTime? now}) {
 | 分页 | `LedgerFooter` / `loadMore()` | `LedgerRecordsNotifier` | 追加去重、失败重试、到底 |
 | 空 / 错 / 骨架 | `EmptyState` / `SectionError` / `SkeletonBox` | — | 三种空态、模块级失败 |
 | 底部导航 / FAB | `AppBottomNav` / `AppTabShell` | Tab 状态 | 选中态、懒加载、回顶 |
+
+
+---
+
+## 15. 实施记录（v0.2）
+
+### 15.1 实际落地的文件
+
+```
+lib/core/
+├── domain/enums.dart                     # PowertrainType / TrendDirection / ExpenseCategory
+├── domain/vehicle.dart                   # Vehicle
+├── presentation/category_style.dart      # 分类 / 动力语义色与图标（跨页共用）
+├── widgets/app_card.dart                 # AppCard（原 HomeCard）
+├── widgets/skeleton_box.dart
+├── widgets/section_error.dart
+├── widgets/empty_state.dart
+├── widgets/app_bottom_nav.dart           # 原 HomeBottomNav
+├── widgets/blurred_header_delegate.dart
+├── widgets/money_display.dart            # ¥ + 整数大字 + 小数小字
+└── format/formatters.dart                # 追加 splitYuanParts / formatDayTitle / formatUnitPrice 等
+
+lib/app/tab_shell.dart                    # Tab 容器 + 懒加载 + 回顶 + FAB
+
+lib/features/ledger/
+├── data/ledger_repository.dart
+├── data/mock_ledger_repository.dart      # 确定性 Mock：月份、车辆、分类、游标分页
+├── domain/ledger_models.dart
+├── domain/ledger_grouping.dart           # 按天分组 + 行拍平 + 结果条
+├── domain/ledger_presenter.dart          # 副标题 / 单价胶囊 / 金额文案
+├── domain/providers.dart                 # 筛选、汇总、游标分页 notifier
+└── presentation/
+    ├── ledger_page.dart
+    └── widgets/                          # header / summary / bars / chips / day header / record card / footer / month picker
+```
+
+### 15.2 与设计稿的差异
+
+| 项 | 处理 |
+| --- | --- |
+| 充电 / 加油胶囊 | 由 `¥/km` 改为 `¥/kWh`、`¥/L`（Q3） |
+| 分类筛选项 | 补齐「洗车」，共 8 项（Q4） |
+| 分组色条 | 使用分类语义色，今天固定主色（Q5） |
+| 筛选绿点 | 仅非默认筛选时显示（Q6） |
+| 汇总与列表口径 | 汇总跟随月份 + 车辆；分类筛选只影响列表并展示结果条（Q10） |
+| 记录点击 / 导出 / 金额与支付筛选 | 本期占位提示，P1 迭代补齐 |
+| 深色模式 | 沿用首页推导的 `AppPalette.dark`，待正式深色稿核对 |
+
+### 15.3 测试
+
+- `test/ledger/ledger_domain_test.dart`：分组顺序与组头统计、结果条、七类副标题与单价胶囊、金额正负、日期与金额格式化。
+- `test/widget_test.dart`：账单 Tab 展示汇总 / 筛选 / 流水、分类筛选结果条与清除、月份选择器打开。

@@ -9,7 +9,8 @@ import '../../../../app/theme/app_typography.dart';
 import '../../../../core/format/formatters.dart';
 import '../../domain/home_models.dart';
 import '../../domain/providers.dart';
-import 'home_card.dart';
+import '../../../../core/widgets/section_error.dart';
+import '../../../../core/widgets/skeleton_box.dart';
 
 class HeroCard extends ConsumerWidget {
   const HeroCard({super.key});

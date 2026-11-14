@@ -8,7 +8,9 @@ import '../../../../app/theme/app_typography.dart';
 import '../../../../core/format/formatters.dart';
 import '../../domain/home_models.dart';
 import '../../domain/providers.dart';
-import 'home_card.dart';
+import '../../../../core/widgets/app_card.dart';
+import '../../../../core/widgets/section_error.dart';
+import '../../../../core/widgets/skeleton_box.dart';
 
 class MaintenanceCard extends ConsumerWidget {
   const MaintenanceCard({super.key});
@@ -43,7 +45,7 @@ class _MaintenanceContent extends StatelessWidget {
         ? palette.errorSoft
         : palette.secondary.withValues(alpha: 0.14);
 
-    return HomeCard(
+    return AppCard(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -222,7 +224,7 @@ class _MaintenanceSkeleton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const HomeCard(
+    return const AppCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

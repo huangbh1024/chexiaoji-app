@@ -9,7 +9,9 @@ import '../../../../app/theme/app_typography.dart';
 import '../../../../core/format/formatters.dart';
 import '../../domain/home_models.dart';
 import '../../domain/providers.dart';
-import 'home_card.dart';
+import '../../../../core/widgets/app_card.dart';
+import '../../../../core/widgets/section_error.dart';
+import '../../../../core/widgets/skeleton_box.dart';
 
 class ConsumptionCard extends ConsumerWidget {
   const ConsumptionCard({super.key});
@@ -41,7 +43,7 @@ class _ConsumptionContent extends StatelessWidget {
     final tokens = context.tokens;
     final hasSecondary = consumption.secondary != null;
 
-    return HomeCard(
+    return AppCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -171,7 +173,7 @@ class _ConsumptionSkeleton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const HomeCard(
+    return const AppCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

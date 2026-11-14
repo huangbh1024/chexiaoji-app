@@ -12,6 +12,7 @@ class AppTokens extends ThemeExtension<AppTokens> {
     required this.spaceLg,
     required this.spaceXl,
     required this.radiusCard,
+    required this.radiusSummary,
     required this.radiusChip,
     required this.radiusPill,
     required this.radiusNav,
@@ -32,6 +33,9 @@ class AppTokens extends ThemeExtension<AppTokens> {
   final double spaceLg;
   final double spaceXl;
   final double radiusCard;
+
+  /// 账单页月度汇总卡使用的大圆角。
+  final double radiusSummary;
   final double radiusChip;
   final double radiusPill;
   final double radiusNav;
@@ -52,6 +56,7 @@ class AppTokens extends ThemeExtension<AppTokens> {
     spaceLg: 20,
     spaceXl: 28,
     radiusCard: 16,
+    radiusSummary: 32,
     radiusChip: 6,
     radiusPill: 999,
     radiusNav: 48,
@@ -105,6 +110,7 @@ class AppTokens extends ThemeExtension<AppTokens> {
     spaceLg: 20,
     spaceXl: 28,
     radiusCard: 16,
+    radiusSummary: 32,
     radiusChip: 6,
     radiusPill: 999,
     radiusNav: 48,
@@ -170,6 +176,7 @@ class AppTokens extends ThemeExtension<AppTokens> {
       spaceLg: _lerpDouble(spaceLg, other.spaceLg, t),
       spaceXl: _lerpDouble(spaceXl, other.spaceXl, t),
       radiusCard: _lerpDouble(radiusCard, other.radiusCard, t),
+      radiusSummary: _lerpDouble(radiusSummary, other.radiusSummary, t),
       radiusChip: _lerpDouble(radiusChip, other.radiusChip, t),
       radiusPill: _lerpDouble(radiusPill, other.radiusPill, t),
       radiusNav: _lerpDouble(radiusNav, other.radiusNav, t),

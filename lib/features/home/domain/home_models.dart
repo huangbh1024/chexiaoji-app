@@ -1,23 +1,11 @@
-/// 车辆动力类型。UI 的颜色 / 图标映射放在 presentation 层。
-enum PowertrainType { ev, hev, phev, ice }
+import '../../../core/domain/enums.dart';
+import '../../../core/domain/vehicle.dart';
 
-enum TrendDirection { up, down, flat, none }
+/// 基础枚举与车辆模型已迁到 `core/domain`，这里 re-export 保持历史 import 可用。
+export '../../../core/domain/enums.dart';
+export '../../../core/domain/vehicle.dart';
 
 enum MaintenanceStatus { normal, warning, overdue }
-
-enum ExpenseCategory {
-  charging('充电'),
-  fuel('加油'),
-  maintenance('保养'),
-  parking('停车'),
-  toll('过路费'),
-  carWash('洗车'),
-  other('其他');
-
-  const ExpenseCategory(this.label);
-
-  final String label;
-}
 
 enum TrendRange {
   d7('7d', '7天'),
@@ -29,28 +17,6 @@ enum TrendRange {
 
   final String apiValue;
   final String label;
-}
-
-class Vehicle {
-  const Vehicle({
-    required this.id,
-    required this.name,
-    required this.plate,
-    required this.powertrain,
-    required this.powertrainLabel,
-    required this.odometerKm,
-    this.badge,
-  });
-
-  final String id;
-  final String name;
-  final String plate;
-  final PowertrainType powertrain;
-  final String powertrainLabel;
-  final int odometerKm;
-
-  /// 车辆卡右上角动力 / 油品标签，选中时隐藏。
-  final String? badge;
 }
 
 class EnergyValue {
