@@ -603,8 +603,7 @@ class _ReportDocument {
             PdfPoint(w * 0.58, h * 0.28),
             PdfPoint(w * 0.88, h * 0.72),
           ];
-    canvas
-      ..moveTo(points.first.x, points.first.y);
+    canvas.moveTo(points.first.x, points.first.y);
     for (final point in points.skip(1)) {
       canvas.lineTo(point.x, point.y);
     }
