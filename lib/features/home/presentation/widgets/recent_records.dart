@@ -4,6 +4,8 @@ import 'package:material_ui/material_ui.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_typography.dart';
 import '../../../../core/format/formatters.dart';
+import '../../../expense_detail/domain/expense_detail_models.dart';
+import '../../../expense_detail/presentation/expense_detail_page.dart';
 import '../../domain/home_models.dart';
 import '../../domain/providers.dart';
 import '../home_style.dart';
@@ -86,7 +88,18 @@ class RecentRecords extends ConsumerWidget {
                             thickness: 1,
                             color: palette.surfaceContainer,
                           ),
-                        _RecordRow(item: items[index]),
+                        _RecordRow(
+                          key: index == 0
+                              ? const Key('recent-record-first')
+                              : null,
+                          item: items[index],
+                          onTap: () => _openDetail(
+                            context,
+                            ref,
+                            vehicleId,
+                            items[index],
+                          ),
+                        ),
                       ],
                     ],
                   ),
@@ -94,6 +107,28 @@ class RecentRecords extends ConsumerWidget {
         ),
       ],
     );
+  }
+
+  Future<void> _openDetail(
+    BuildContext context,
+    WidgetRef ref,
+    String vehicleId,
+    RecordItem item,
+  ) async {
+    final outcome = await Navigator.of(context).push<ExpenseDetailOutcome>(
+      MaterialPageRoute<ExpenseDetailOutcome>(
+        builder: (context) => ExpenseDetailPage(recordId: item.id),
+      ),
+    );
+    if (!context.mounted || outcome == null) {
+      return;
+    }
+    ref.invalidate(recordsProvider(vehicleId));
+    ref.invalidate(homeDashboardProvider(vehicleId));
+    ref.invalidate(breakdownProvider(vehicleId));
+    if (outcome == ExpenseDetailOutcome.deleted) {
+      _toast(context, '已删除');
+    }
   }
 
   void _toast(BuildContext context, String message) {
@@ -111,9 +146,10 @@ class RecentRecords extends ConsumerWidget {
 }
 
 class _RecordRow extends StatelessWidget {
-  const _RecordRow({required this.item});
+  const _RecordRow({super.key, required this.item, required this.onTap});
 
   final RecordItem item;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -126,16 +162,7 @@ class _RecordRow extends StatelessWidget {
     };
 
     return InkWell(
-      onTap: () => ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(
-          SnackBar(
-            content: const Text('账单详情待接入'),
-            behavior: SnackBarBehavior.floating,
-            margin: const EdgeInsets.fromLTRB(16, 0, 16, 96),
-            duration: const Duration(seconds: 2),
-          ),
-        ),
+      onTap: onTap,
       borderRadius: BorderRadius.circular(12),
       child: Padding(
         padding: const EdgeInsets.all(10),

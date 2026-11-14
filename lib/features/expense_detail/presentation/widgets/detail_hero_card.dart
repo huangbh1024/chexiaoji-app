@@ -51,10 +51,14 @@ class DetailHeroCard extends StatelessWidget {
                   ),
                 ),
               ),
-              Padding(
-                padding: const EdgeInsets.all(ExpenseDetailStyle.heroPadding),
-                child: Column(
-                  children: [
+              SizedBox(
+                width: double.infinity,
+                child: Padding(
+                  padding: const EdgeInsets.all(ExpenseDetailStyle.heroPadding),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
                     _HeroIcon(category: category),
                     const SizedBox(height: 12),
                     Text(
@@ -78,9 +82,10 @@ class DetailHeroCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 16),
                     _HeroAmount(detail: detail),
-                    const SizedBox(height: 8),
-                    _StatusLine(detail: detail, status: status),
-                  ],
+                      const SizedBox(height: 8),
+                      _StatusLine(detail: detail, status: status),
+                    ],
+                  ),
                 ),
               ),
             ],

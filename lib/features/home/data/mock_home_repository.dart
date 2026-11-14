@@ -1,7 +1,15 @@
+import '../../../core/format/formatters.dart';
+import '../../ledger/domain/ledger_models.dart';
+import '../../ledger/domain/ledger_presenter.dart';
+import '../../ledger/data/ledger_repository.dart';
 import '../domain/home_models.dart';
 import 'home_repository.dart';
 
 class MockHomeRepository implements HomeRepository {
+  MockHomeRepository({this.ledger});
+
+  final LedgerRepository? ledger;
+
   @override
   String get defaultVehicleId => _cars.first.vehicle.id;
 
@@ -26,8 +34,34 @@ class MockHomeRepository implements HomeRepository {
       _carById(vehicleId).breakdown;
 
   @override
-  Future<List<RecordItem>> fetchRecords(String vehicleId) async =>
-      _carById(vehicleId).records.take(5).toList(growable: false);
+  Future<List<RecordItem>> fetchRecords(String vehicleId) async {
+    final ledger = this.ledger;
+    if (ledger == null) {
+      return _carById(vehicleId).records.take(5).toList(growable: false);
+    }
+    final page = await ledger.fetchRecords(
+      LedgerQuery(month: monthStart(DateTime.now()), vehicleId: vehicleId),
+      limit: 20,
+    );
+    return page.items
+        .take(5)
+        .map(_toRecordItem)
+        .toList(growable: false);
+  }
+
+  RecordItem _toRecordItem(LedgerRecord record) {
+    final subtitle = record.subtitle;
+    return RecordItem(
+      id: record.id,
+      category: record.category,
+      title: '${record.category.label} · ${record.title}',
+      subtitle: subtitle == null
+          ? formatDayTitle(record.occurredAt)
+          : '${formatDayTitle(record.occurredAt)} · $subtitle',
+      amountCents: record.amountCents,
+      subLabel: record.unitPricePillText,
+    );
+  }
 
   @override
   Future<TrendData> fetchTrend(String vehicleId, TrendRange range) async {
