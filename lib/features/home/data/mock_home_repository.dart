@@ -1,14 +1,14 @@
 import '../../../core/format/formatters.dart';
 import '../../ledger/domain/ledger_models.dart';
 import '../../ledger/domain/ledger_presenter.dart';
-import '../../ledger/domain/ledger_repository.dart';
+import '../../ledger/data/ledger_repository.dart';
 import '../domain/home_models.dart';
 import 'home_repository.dart';
 
 class MockHomeRepository implements HomeRepository {
-  MockHomeRepository({LedgerRepository? ledger}) : _ledger = ledger;
+  MockHomeRepository({this.ledger});
 
-  final LedgerRepository? _ledger;
+  final LedgerRepository? ledger;
 
   @override
   String get defaultVehicleId => _cars.first.vehicle.id;
@@ -35,7 +35,7 @@ class MockHomeRepository implements HomeRepository {
 
   @override
   Future<List<RecordItem>> fetchRecords(String vehicleId) async {
-    final ledger = _ledger;
+    final ledger = this.ledger;
     if (ledger == null) {
       return _carById(vehicleId).records.take(5).toList(growable: false);
     }
