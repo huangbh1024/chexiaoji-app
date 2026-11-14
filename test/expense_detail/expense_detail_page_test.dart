@@ -96,6 +96,8 @@ void main() {
   testWidgets('编辑备注并保存后原地更新', (tester) async {
     await _pumpPage(tester);
 
+    await tester.ensureVisible(find.text('编辑备注'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('编辑备注'));
     await tester.pumpAndSettle();
     expect(find.text('保存'), findsOneWidget);
