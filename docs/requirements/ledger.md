@@ -8,7 +8,7 @@
 | 设计稿 | [Stitch · 账单·明细与流水记录](https://stitch.google.com/projects/9615374848161425677?node-id=509df27d171c476ea2901ab6dbae2636) |
 | 设计系统 | Lumina Velocity（Plus Jakarta Sans、翡翠绿主色、全圆角、柔和阴影） |
 | 关联页面 | 首页、记账页、统计页、我的、[单笔开销详情](expense-detail.md) |
-| 关联文档 | [首页需求文档](home-dashboard.md) · [首页技术方案](../technical/home-dashboard.md) |
+| 关联文档 | [首页需求文档](home-dashboard.md) · [首页技术方案](../technical/home-dashboard.md) · [记账页需求文档](expense-entry.md) |
 | 技术方案 | [docs/technical/ledger.md](../technical/ledger.md) |
 | 状态 | 口径已定，M0–M3 已实施；接口契约待后端确认 |
 

@@ -3,6 +3,7 @@
 | 项目 | 内容 |
 | --- | --- |
 | 关联需求 | [账单·单笔开销详情页需求文档 v0.3](../requirements/expense-detail.md) |
+| 关联方案 | [记账页技术方案](expense-entry.md)（再记一笔 / 编辑此笔账单入口） |
 | 实现基准 | [`../code.html`](../../../code.html)（当前 UI 的 HTML 源码） |
 | 设计稿（对应页面） | [Stitch · 账单·通用开销详情页（精炼纯粹版）](https://stitch.google.com/projects/9615374848161425677?node-id=c9b3d2a152944e7f9f3b5c6cce59ba05) |
 | 客户端 | Flutter 3.50.0 stable / Dart 3.14 |

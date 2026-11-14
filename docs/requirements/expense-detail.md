@@ -10,7 +10,7 @@
 | 其他稿（非本期基线） | [通用开销详情页（富稿）](https://stitch.google.com/projects/9615374848161425677?node-id=9839d8f96a9440dcaf869d7eac418170)、[单笔开销详情页（旧稿）](https://stitch.google.com/projects/9615374848161425677?node-id=220eed46efb24bc18894c744f2365716) |
 | 设计系统 | Lumina Velocity（Plus Jakarta Sans、翡翠绿主色、全圆角、柔和阴影） |
 | 关联页面 | 账单页（入口）、首页「最近记录」、记账页 / 编辑页、车辆管理、月度报表 |
-| 关联文档 | [账单页需求文档](ledger.md) · [账单页技术方案](../technical/ledger.md) · [月度报表需求文档](monthly-report.md) |
+| 关联文档 | [账单页需求文档](ledger.md) · [账单页技术方案](../technical/ledger.md) · [月度报表需求文档](monthly-report.md) · [记账页需求文档](expense-entry.md) |
 | 技术方案 | [docs/technical/expense-detail.md](../technical/expense-detail.md) |
 | 状态 | 待评审；接口契约未确认，按 §8 草案推进，客户端先用 Mock |
 
