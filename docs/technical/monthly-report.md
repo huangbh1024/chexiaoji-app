@@ -2,15 +2,15 @@
 
 | 项目 | 内容 |
 | --- | --- |
-| 关联需求 | [月度报表与导出页需求文档 v0.1](../requirements/monthly-report.md) |
+| 关联需求 | [月度报表与导出页需求文档 v0.3](../requirements/monthly-report.md) |
 | 设计稿 | [Stitch · 账单导出与月度报表预览页](https://stitch.google.com/projects/9615374848161425677?node-id=6e6486f813ee4d1d87708cf7fab49890) |
 | 客户端 | Flutter 3.50.0 stable / Dart 3.14 |
 | 平台 | Android（arm64 优先）、iOS |
-| 文档版本 | v0.2（口径已定） |
-| 状态 | 设计完成，未实施；口径已定，导出依赖与后端聚合接口待确认 |
+| 文档版本 | v0.3（口径与接口已定） |
+| 状态 | 设计完成，未实施；接口已定，后端按 §7.4 实现，客户端按 M0–M5 推进 |
 
 > 本文档基于**仓库当前已有实现**（首页、账单页、`AppTabShell` 已落地，依赖为 `material_ui`、`flutter_riverpod`、`fl_chart`、`intl`）编写。所有新增目录、文件与依赖均为拟实施内容，按 `feat/monthly-report` 分支推进。
-> 需求口径以 [需求文档 v0.2](../requirements/monthly-report.md) 的「已定口径（Q1–Q17）」为准，本文档不再保留未决的产品问题。
+> 需求口径以 [需求文档 v0.3](../requirements/monthly-report.md) 的「已定口径（Q1–Q17）」为准，本文档不再保留未决的产品问题；接口契约以 §7.4 为准，后端按此实现。
 
 ---
 
@@ -77,7 +77,7 @@ lib/
         ├── data/
         │   ├── report_repository.dart       # 抽象接口
         │   ├── mock_report_repository.dart  # 基于 LedgerRepository + HomeRepository 聚合
-        │   └── report_api.dart              # 接口契约与 DTO（暂不实现）
+        │   └── report_api.dart              # ReportApi / HttpReportApi（M5 接入 §7.4）
         ├── domain/
         │   ├── report_models.dart           # ReportScope / MonthlyReport / 分组 / 日点 / 选项
         │   ├── report_aggregation.dart      # 纯函数：聚合、里程、百分比、单号、脱敏
@@ -286,7 +286,8 @@ class MonthlyReport {
 ```
 
 - 金额、笔数、里程、能耗均为服务端 / 仓库聚合结果；客户端不拿 `LedgerMonthSummary` 直接展示（它缺少里程、能耗与分类分组）。
-- `categories` 固定按 §7.3 的 6 组顺序排列，金额为 0 的组可以保留在模型里，由 UI 过滤；`percent` 为 null 表示总额 ≤ 0。
+- DTO 映射只消费领域模型需要的字段：`generatedAt` → `generatedAt`、`dataUpdatedAt` → `updatedAt`；`distanceSource` 仅用于 debug 打点；`schemaVersion`、`vehicles[].recordCount`、`daily[].recordCount`、`verification.checkedAt` 留在 DTO 层，不进入领域模型。
+- `categories` 固定按 §7.3 的 6 组顺序排列，金额为 0 的组可以保留在模型里，由 UI 过滤；`percent` 为 null 表示总额 ≤ 0 或该组为负。
 - `daily` 覆盖当月 1 日至最后一天；当前月只到今天。缺失日期由聚合函数补齐为 0，保证曲线连续。
 - `verified` / `verificationText` 由后端下发；Mock 阶段固定 `verified = false`，文案使用本地汇总版本。
 
@@ -634,21 +635,26 @@ class MockReportRepository implements ReportRepository {
 ```
 
 - 与账单页使用同一个 `MockLedgerRepository` 实例（通过 `ledgerRepositoryProvider`），保证同月同车数据一致。
+- **生产环境**由 `HttpReportRepository` 调用 §7.4 接口；`MockReportRepository` 仅用于未联调、离线演示与 Widget 测试。M5 替换 provider 实现即可。
 - 上月总额：查询 `month - 1` 的全部记录求和；为 0 或无数据时 `momPercent = null`。
 - 缓存 TTL 2 分钟；本期不做主动失效，页面重新进入时 `autoDispose` 已销毁 Future，仓库缓存仍可命中。记录变更后返回本页应重新拉取（P1 增加 `invalidateReportCache()`）。
 
 ### 7.2 接口
 
+> 后端已确认提供以下接口与字段，详细契约见 §7.4；客户端按此实现 DTO，不再保留「待后端确认」分支。
+
 | 方法 | 路径 | 用途 | 时机 |
 | --- | --- | --- | --- |
-| GET | `/api/v1/reports/monthly?month=&vehicleIds=` | 报表聚合 | 进入 / 切月 / 切车 |
-| GET | `/api/v1/ledger/records?month=&vehicleIds=&limit=100&cursor=` | CSV 明细 | 导出 CSV / 长图明细（P1） |
+| GET | `/api/v1/reports/monthly?month=&vehicleIds=&tz=` | 报表聚合 | 进入 / 切月 / 切车 |
+| GET | `/api/v1/ledger/records?month=&vehicleIds=&sort=time_asc&limit=100&cursor=` | CSV 明细 | 导出 CSV / 长图明细（P1） |
+| GET | `/api/v1/vehicles` | 车辆信息与累计里程 | 范围条 / 报表车辆条 |
 
 - `vehicleIds=all` 表示全部车辆，否则逗号分隔；本期单选，传单个 id 或 `all`。
-- `ReportApi` 只定义签名与 DTO mapper；接入后端时新增 `HttpReportApi`，`reportRepositoryProvider` 换实现即可。
+- `ReportApi` 只定义签名与 DTO mapper；接入后端时新增 `HttpReportApi`，`reportRepositoryProvider` 换实现即可（M5）。
 - 聚合失败时抛 `ReportLoadException(message)`；UI 展示可重试错误，不影响顶栏与范围条。
 - 缓存：`Map<String, MonthlyReport>`，key = `month|vehicleId`，TTL 2 分钟；本期不落盘。
 - 报表与流水是两个独立请求；CSV 拉取失败不回滚报表。
+- Mock 仓库保留用于离线演示与 Widget 测试；生产环境以 HTTP 实现为准。
 
 ### 7.3 竞态
 
@@ -667,6 +673,304 @@ Future<MonthlyReport> fetchReport(ReportScope scope) async {
 
 - UI 对 `StaleReportResponse` 静默忽略，不展示错误。
 
+### 7.4 接口契约（后端实现依据）
+
+> 本节是后端实现与客户端 DTO 的**唯一契约来源**。字段新增遵循「只加不改」；删除或改语义需升 `/api/v2`。
+
+#### 7.4.1 通用约定
+
+| 项 | 约定 |
+| --- | --- |
+| Base URL | `/api/v1` |
+| 认证 | `Authorization: Bearer <access_token>`；401 时客户端跳登录 |
+| Content-Type | `application/json; charset=utf-8` |
+| 金额 | 整数分（`int`），禁止浮点；币种固定 CNY |
+| 时间 | ISO 8601 带时区偏移，如 `2026-11-14T18:30:00+08:00` |
+| 月份 | `YYYY-MM`，如 `2026-11` |
+| 时区 | IANA 名称，如 `Asia/Shanghai`；月份边界与日分组按该时区计算 |
+| 枚举 | 小驼峰英文：`recording` / `issued`、`charging` / `fuel` / …、`ev` / `hev` / `phev` / `ice`、`up` / `down` / `flat` / `none` |
+| 空值 | 无值用 `null`，数值 0 用 `0`；不返回空字符串代替 null |
+| 未知字段 | 客户端忽略；服务端可加字段，不改已有字段语义 |
+| 请求追踪 | 客户端可传 `X-Request-Id`；响应返回 `X-Trace-Id` |
+| 幂等 | 所有 GET 幂等；同一参数在数据未变时返回相同业务结果（时间戳与 ETag 除外） |
+| 版本 | 响应含 `schemaVersion`（当前 `1`）；不兼容变更升版本号 |
+
+#### 7.4.2 `GET /api/v1/reports/monthly`
+
+**Query**
+
+| 参数 | 类型 | 必填 | 默认 | 说明 |
+| --- | --- | --- | --- | --- |
+| `month` | string | 是 | — | `YYYY-MM`，不能晚于当前月（按 `tz`） |
+| `vehicleIds` | string | 否 | `all` | `all` 或逗号分隔的车辆 id，最多 10 个 |
+| `tz` | string | 否 | `Asia/Shanghai` | IANA 时区；非法值返回 `INVALID_TIMEZONE` |
+
+**Response 200**
+
+```json
+{
+  "schemaVersion": 1,
+  "month": "2026-11",
+  "timezone": "Asia/Shanghai",
+  "reportNo": "RP-202611-8821",
+  "status": "recording",
+  "generatedAt": "2026-11-14T18:30:00+08:00",
+  "dataUpdatedAt": "2026-11-14T18:25:00+08:00",
+  "settledAt": null,
+  "totalCents": 128600,
+  "recordCount": 6,
+  "distanceKm": 2140,
+  "distanceSource": "odometer",
+  "days": 30,
+  "costPerKmCents": 60,
+  "energy": {
+    "kwh": 316.7,
+    "liters": null,
+    "kwhPer100km": 14.8,
+    "litersPer100km": null
+  },
+  "mom": { "percent": -8.2, "trend": "down", "previousTotalCents": 140100 },
+  "vehicles": [
+    {
+      "id": "byd-han-ev",
+      "name": "比亚迪 汉 EV",
+      "shortName": "汉 EV",
+      "plate": "粤B·D82K6",
+      "powertrain": "ev",
+      "powertrainLabel": "纯电驱动",
+      "odometerKm": 18426,
+      "recordCount": 6
+    }
+  ],
+  "categories": [
+    { "key": "charging", "label": "充电动能", "amountCents": 38600, "count": 2, "percent": 30 },
+    { "key": "maintenance", "label": "常规保养", "amountCents": 48000, "count": 1, "percent": 37 },
+    { "key": "parking", "label": "临停泊车", "amountCents": 16800, "count": 1, "percent": 13 },
+    { "key": "toll", "label": "高速通行", "amountCents": 13200, "count": 1, "percent": 10 },
+    { "key": "carWashOther", "label": "洗车及其他", "amountCents": 12900, "count": 1, "percent": 10 }
+  ],
+  "daily": [
+    { "date": "2026-11-01", "chargingCents": 0, "otherCents": 0, "recordCount": 0, "dominantCategory": null },
+    { "date": "2026-11-15", "chargingCents": 0, "otherCents": 48000, "recordCount": 1, "dominantCategory": "maintenance" }
+  ],
+  "verification": {
+    "verified": true,
+    "text": "数据已通过云端对账校验 · 自动归档",
+    "checkedAt": "2026-11-14T18:26:00+08:00"
+  }
+}
+```
+
+**字段字典**
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `schemaVersion` | int | 契约版本，当前 1 |
+| `month` | string | 回显请求月份 |
+| `timezone` | string | 回显生效时区 |
+| `reportNo` | string | `RP-YYYYMM-XXXX`；同一用户 + 月份 + 车辆范围长期稳定 |
+| `status` | enum | `recording`（当前月）/ `issued`（历史月），按 `tz` 判断 |
+| `generatedAt` | datetime | 本次聚合生成时间 |
+| `dataUpdatedAt` | datetime | 范围内记录的最后更新时间；用于新鲜度与 ETag |
+| `settledAt` | datetime? | 历史月为月末 23:59:59；当前月为 `null` |
+| `totalCents` | int | 净额，退款为负，可为负 |
+| `recordCount` | int | 记录条数，包含退款记录 |
+| `distanceKm` | int | 本月行驶里程，≥ 0 |
+| `distanceSource` | enum | `odometer` 读数极差 / `records` 单笔里程求和 / `none` 无法计算 |
+| `days` | int | 当月自然日天数（28–31） |
+| `costPerKmCents` | int? | `totalCents / distanceKm` 四舍五入；`distanceKm = 0` 时为 `null` |
+| `energy.kwh` | double | 充电量合计，≥ 0 |
+| `energy.liters` | double | 加油量合计，≥ 0 |
+| `energy.kwhPer100km` | double? | `kwh / distanceKm * 100`，1 位小数；无里程时 `null` |
+| `energy.litersPer100km` | double? | `liters / distanceKm * 100`，1 位小数；无里程时 `null` |
+| `mom.percent` | double? | 环比百分比，1 位小数；上月总额 0 或缺失时 `null` |
+| `mom.trend` | enum | `up` / `down` / `flat` / `none` |
+| `mom.previousTotalCents` | int? | 上月同范围总额；无数据时 `null` |
+| `vehicles[]` | array | 范围内车辆；全部车辆时返回全部自有车辆 |
+| `vehicles[].recordCount` | int | 该车在本月范围内的记录数 |
+| `categories[]` | array | 固定 6 组，按 §7.3 顺序；金额为 0 的组可省略 |
+| `categories[].key` | enum | `charging` / `fuel` / `maintenance` / `parking` / `toll` / `carWashOther` |
+| `categories[].label` | string | 服务端展示名，客户端优先使用并做兜底 |
+| `categories[].amountCents` | int | 组内净额，可为负 |
+| `categories[].count` | int | 组内记录数 |
+| `categories[].percent` | int? | 整数百分比；正向总额时为最大余数法且合计 100，否则 `null` |
+| `daily[]` | array | 覆盖 1 日至最后一天（当前月为今天），含 0 值日 |
+| `daily[].date` | string | `YYYY-MM-DD`（`tz` 下） |
+| `daily[].chargingCents` | int | 当日充电金额 |
+| `daily[].otherCents` | int | 当日除充电外全部金额 |
+| `daily[].recordCount` | int | 当日记录数 |
+| `daily[].dominantCategory` | enum? | 当日金额最大的分类；全 0 时为 `null` |
+| `verification.verified` | bool | 是否通过服务端对账校验 |
+| `verification.text` | string? | 校验文案；`verified = false` 时客户端忽略并使用中性文案 |
+| `verification.checkedAt` | datetime? | 最近一次校验时间 |
+
+**服务端必须保证的不变量**
+
+1. `Σ categories[].amountCents == totalCents`（含负组）。
+2. `Σ (daily[].chargingCents + daily[].otherCents) == totalCents`。
+3. `recordCount == Σ categories[].count`（若返回全部组）且 `> 0` 时 `daily` 覆盖完整区间。
+4. 同一 `month + vehicleIds + tz` 的 `totalCents` 与账单页 `/ledger/summary` 完全一致。
+5. `status`、`settledAt`、`days` 按 `tz` 计算；`month` 不能超过当前月。
+6. `percent` 非空时合计 100；负金额组或总额 ≤ 0 时返回 `null`。
+7. `distanceSource = none` 时 `distanceKm = 0`、`costPerKmCents = null`、两个百公里字段为 `null`。
+8. 同一 scope 的 `reportNo` 稳定，不因数据更新而变化；不同 scope 不重复。
+9. 无记录时返回 200：金额 / 笔数 / 里程为 0，`categories` 为空数组，`daily` 全 0，`verification.verified = false`。
+
+#### 7.4.3 `GET /api/v1/ledger/records`（扩展）
+
+**Query**
+
+| 参数 | 类型 | 必填 | 默认 | 说明 |
+| --- | --- | --- | --- | --- |
+| `month` | string | 是 | — | `YYYY-MM` |
+| `vehicleIds` | string | 否 | `all` | 同报表 |
+| `categories` | string | 否 | 全部 | 逗号分隔的分类 key；CSV 导出不传 |
+| `sort` | enum | 否 | `time_desc` | 新增 `time_asc`；另有 `amount_desc` / `category` |
+| `cursor` | string | 否 | — | 不透明游标；首页不传 |
+| `limit` | int | 否 | 50 | 最大 200；超过时服务端截断为 200 |
+| `tz` | string | 否 | `Asia/Shanghai` | 月份边界与日分组 |
+
+**Response 200**
+
+```json
+{
+  "items": [
+    {
+      "id": "rec_123",
+      "vehicleId": "byd-han-ev",
+      "vehicleName": "比亚迪 汉 EV",
+      "vehicleShortName": "汉 EV",
+      "vehiclePlate": "粤B·D82K6",
+      "category": "charging",
+      "title": "特来电快充 · 科技园站",
+      "amountCents": 5110,
+      "occurredAt": "2026-11-14T08:42:00+08:00",
+      "description": null,
+      "badge": { "kind": "meta", "text": "B2区" },
+      "metrics": {
+        "kwh": 38.5,
+        "liters": null,
+        "odometerKm": 18426,
+        "distanceKm": 300,
+        "durationMinutes": null,
+        "paymentMethod": "微信"
+      },
+      "statusText": null,
+      "note": null,
+      "updatedAt": "2026-11-14T08:43:10+08:00"
+    }
+  ],
+  "nextCursor": "eyJ...",
+  "hasMore": true,
+  "totalCount": 6
+}
+```
+
+**新增 / 明确字段**
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `vehicleName` | string | 车辆全名，CSV「车辆」列直接使用 |
+| `vehicleShortName` | string | 车辆简称，记录徽标使用（兼容现有 `vehicleShortName`） |
+| `vehiclePlate` | string | 车辆完整车牌；客户端按隐私开关本地脱敏 |
+| `metrics.distanceKm` | int? | **该笔记录对应的行驶距离**（非累计里程），用于月度里程兜底；无则 `null` |
+| `metrics.paymentMethod` | string? | 支付方式，CSV 直接输出 |
+| `updatedAt` | datetime | 记录最后更新时间，用于缓存与增量刷新 |
+| `totalCount` | int? | 当前筛选下的总条数，可选；CSV 进度展示用 |
+
+**分页规则**
+
+- 游标不透明，服务端实现；排序必须稳定，推荐 `(occurredAt, id)` 作为 tiebreaker。
+- 同一游标重复请求返回相同页；跨页不重复、不遗漏。
+- `sort=time_asc` 按 `occurredAt` 升序，无时刻记录排当日 00:00；CSV 使用该排序。
+- `hasMore = false` 时 `nextCursor = null`。
+- 客户端 CSV 导出循环拉取，单次 `limit=200`，最多 20 页（4000 条）后停止并提示数据过大。
+
+#### 7.4.4 `GET /api/v1/vehicles`
+
+复用首页车辆列表，字段需满足报表：
+
+```json
+[
+  {
+    "id": "byd-han-ev",
+    "name": "比亚迪 汉 EV",
+    "shortName": "汉 EV",
+    "plate": "粤B·D82K6",
+    "powertrain": "ev",
+    "powertrainLabel": "纯电驱动",
+    "odometerKm": 18426,
+    "badge": null,
+    "updatedAt": "2026-11-14T18:00:00+08:00"
+  }
+]
+```
+
+- `odometerKm` 为当前累计里程，报表车辆条直接展示。
+- 全部车辆时客户端对 `odometerKm` 求和；服务端无需再算合计。
+- 车辆被删除后，报表请求若指定该车返回 `VEHICLE_NOT_FOUND`；客户端回退全部车辆。
+
+#### 7.4.5 错误契约
+
+```json
+{
+  "code": "INVALID_MONTH",
+  "message": "month 必须是 YYYY-MM 且不能晚于当前月",
+  "traceId": "9f2c...",
+  "details": { "month": "2026-13" }
+}
+```
+
+| HTTP | code | 场景 | 客户端处理 |
+| --- | --- | --- | --- |
+| 400 | `INVALID_MONTH` | 月份格式错误 / 未来月份 | 提示并重置为当前月 |
+| 400 | `INVALID_TIMEZONE` | `tz` 非法 | 回退 `Asia/Shanghai` 并重试一次 |
+| 400 | `INVALID_VEHICLE_IDS` | 车辆 id 格式 / 数量超限 | 提示并回退全部车辆 |
+| 401 | `UNAUTHORIZED` | token 过期 / 缺失 | 跳登录，登录后回到本页 |
+| 403 | `FORBIDDEN` | 无权访问该车辆 | 回退全部车辆 |
+| 404 | `VEHICLE_NOT_FOUND` | 指定车辆已删除 | 回退全部车辆 + Toast |
+| 429 | `RATE_LIMITED` | 频率限制 | 指数退避重试 1 次，仍失败则提示 |
+| 500 | `INTERNAL_ERROR` | 服务端异常 | 错误态 + 重试 |
+| 503 | `SERVICE_UNAVAILABLE` | 维护 / 过载 | 错误态 + 重试，保留缓存 |
+
+- 错误响应不包含堆栈、车牌、商家名等敏感信息；`traceId` 用于排查。
+- 客户端只对 GET 的 5xx / 超时重试 1 次，4xx 不自动重试。
+
+#### 7.4.6 缓存、性能与一致性
+
+| 项 | 要求 |
+| --- | --- |
+| ETag | 基于 `scope + dataUpdatedAt + schemaVersion` 生成；支持 `If-None-Match` 返回 304 |
+| Cache-Control | `private, max-age=60`；当前月数据变化时 ETag 必须变化 |
+| 报表延迟 | 服务端 P90 ≤ 300ms（不含网络）；冷查询 ≤ 800ms |
+| 流水延迟 | 单页 P90 ≤ 200ms；200 条/页 |
+| 索引 | 按 `user_id + occurred_at`、`user_id + vehicle_id + occurred_at` 建索引 |
+| 聚合 | 优先预聚合 / 物化月度汇总；无预聚合时单次查询完成，避免 N+1 |
+| 一致性 | 报表与账单 summary 共用同一聚合口径与同一时区；发布前跑对账测试 |
+| 时钟 | 当前月边界以服务端时间为准；客户端显示 `generatedAt` / `dataUpdatedAt` |
+
+#### 7.4.7 客户端接入与契约测试
+
+- 新增 `HttpReportApi` / DTO mapper，字段解析容错：未知字段忽略、可空字段缺失按 `null`、枚举未知值回退默认并打点。
+- M5 切换 `reportRepositoryProvider` 为 `HttpReportRepository`；Mock 仅保留测试与离线演示。
+- Debug 模式下校验 §7.4.2 的不变量；不满足时打点 `report_contract_violation`，不阻塞 UI。
+- 超时 10s；GET 5xx / 超时重试 1 次（500ms 退避）；401 不重试。
+- 后端发布 OpenAPI 3.1 文档；客户端用固定 fixture 做 mapper 单测，后端用同一 fixture 做契约测试。
+- 变更流程：字段只加不改；语义变更需同时更新本文档、需求 §8、OpenAPI 与 fixture。
+
+#### 7.4.8 后端实现清单
+
+- [ ] `GET /api/v1/reports/monthly` 返回 §7.4.2 全部字段与不变量。
+- [ ] `GET /api/v1/ledger/records` 增加 `vehicleName` / `vehiclePlate` / `metrics.distanceKm` / `updatedAt` / `totalCount` 与 `sort=time_asc`。
+- [ ] `GET /api/v1/vehicles` 返回 `shortName` / `plate` / `powertrainLabel` / `odometerKm` / `updatedAt`。
+- [ ] 月份边界、`status`、`days`、`daily` 按 `tz` 计算。
+- [ ] 里程按「按车分组读数极差 → 单笔 `distanceKm` 求和 → 0」的顺序计算，并返回 `distanceSource`。
+- [ ] 分类按 6 组归并，`percent` 使用最大余数法。
+- [ ] `reportNo` 稳定生成；`verification` 返回真实校验状态。
+- [ ] 统一错误体与错误码；不泄露敏感字段。
+- [ ] ETag / 304 / Cache-Control。
+- [ ] OpenAPI 3.1 与契约测试；fixture 与客户端共用。
+
 ---
 
 ## 8. 状态管理
@@ -675,6 +979,7 @@ Future<MonthlyReport> fetchReport(ReportScope scope) async {
 
 ```dart
 final reportRepositoryProvider = Provider<ReportRepository>((ref) {
+  // M5：后端接口可用后替换为 HttpReportRepository(ref.watch(reportApiProvider))
   return MockReportRepository(
     ledger: ref.watch(ledgerRepositoryProvider),
     home: ref.watch(homeRepositoryProvider),
@@ -1340,6 +1645,12 @@ PDF 不依赖设备字体，必须自带中文：
   - 关闭能耗分析后页数仍为 1；
   - 当前月页脚包含「记录中」；隐私开启时字节流中的车牌为脱敏值（可用 `pdf` 文本提取或构建前参数断言）。
 - `ReportExportController`：串行、失败重试、取消后删除文件（注入 FakeExporter 断言调用次数）。
+- API / DTO（M5）：
+  - `ReportMapper.fromJson` 解析 §7.4.2 fixture，字段与领域模型一一对应；
+  - 未知字段忽略、可空字段缺失按 `null`、未知枚举回退默认并打点；
+  - 不变量校验：分类合计 = 总额、日合计 = 总额、百分比合计 100；
+  - `HttpReportRepository`：200 正常、304 使用缓存、5xx 重试 1 次、401 不重试、超时抛 `ReportTimeout`；
+  - `LedgerRecordsMapper` 解析 `vehicleName` / `vehiclePlate` / `metrics.distanceKm` / `updatedAt`。
 
 ### 14.2 Widget 测试
 
@@ -1379,15 +1690,17 @@ PDF 不依赖设备字体，必须自带中文：
 | M2 范围与状态 | 月份选择、车辆切换、加载骨架、错误重试、空态、离线条、缩放 / 全屏 | 页面完整可操作 |
 | M3 导出 | `pdf` / `share_plus` / `path_provider` / `printing` 接入；PDF + CSV；分享、打印、失败重试、临时文件清理 | 可实际导出报销文件 |
 | M4 打磨 | 隐私开关全链路、能耗开关、无障碍、性能、字体子集、长图（P1） | 达到验收清单 |
+| M5 接口接入 | `HttpReportApi` / `HttpLedgerApi` 替换 Mock；DTO mapper、ETag / 304、超时重试、契约 fixture 与不变量校验 | 前后端联调通过，生产环境走真实接口 |
 
 分支建议：
 
 - `feat/monthly-report-models`（M0）
 - `feat/monthly-report-page`（M1–M2）
 - `feat/monthly-report-export`（M3）
+- `feat/monthly-report-api`（M5，后端接口可用后）
 - `feat/monthly-report-poster`（P1 长图）
 
-每个阶段保持 `flutter analyze` / `flutter test` 通过；依赖新增单独在 M3 的 PR 中说明，并同步更新 `CONTRIBUTING.md` / `docs/CI.md`（若影响构建）。
+每个阶段保持 `flutter analyze` / `flutter test` 通过；依赖新增单独在 M3 的 PR 中说明，并同步更新 `CONTRIBUTING.md` / `docs/CI.md`（若影响构建）。M5 与后端联调时以 §7.4 为准，任何字段调整先改契约与 fixture，再改两端代码。
 
 ---
 
@@ -1410,8 +1723,10 @@ PDF 不依赖设备字体，必须自带中文：
 | 全部车辆混合动力 | 能耗指标混合 | 分别展示充电 kWh 与加油 L，不合成单一百公里指标 |
 | 长图截屏清晰度 | 分享质量 | P1 离屏 1080px 渲染；本期不阻塞 |
 | 设计稿品牌 / 戳记 / 图例文案与产品不一致 | 返工 | 已定稿：品牌「车小记」、中性戳记、保养琥珀、标题「每日开销走势」、统计「共 N 笔收支」 |
+| 后端字段 / 聚合口径漂移 | 报表与账单数字不一致、解析失败 | §7.4 作为唯一契约；后端 OpenAPI + 双方共用 fixture；Debug 校验不变量并打点 |
+| 报表聚合慢查询 | 首屏超时 | 预聚合 / 物化月度汇总；索引 `user_id + occurred_at`；服务端 P90 ≤ 300ms |
 
-已定决策（与需求文档 v0.2 §13 同步）：
+已定决策（与需求文档 v0.3 §13 同步）：
 
 1. 品牌统一为「车小记 · AUTO LEDGER」。
 2. 报表不跟随账单页分类筛选；范围只含月份 + 车辆。
@@ -1423,11 +1738,13 @@ PDF 不依赖设备字体，必须自带中文：
 8. 导出走系统分享面板，不自建保存目录、不申请存储权限。
 9. 隐私开关只脱敏结构化车牌；配置与范围不跨会话记忆。
 
-仍需后端确认（不阻塞客户端开发，Mock 已覆盖）：
+后端接口已确认（v0.3，后端按 §7.4 实现）：
 
-1. 是否提供月度报表聚合接口 `/api/v1/reports/monthly`，还是客户端基于流水聚合。
-2. `reportNo` 是否由服务端生成并长期稳定；`verified` 是否可下发。
-3. 是否补充记录级 `distanceKm` / 月度里程字段，避免客户端只靠里程表读数推算。
+1. 提供 `GET /api/v1/reports/monthly` 月度报表聚合接口，字段与不变量见 §7.4.2。
+2. 扩展 `GET /api/v1/ledger/records`：`vehicleName` / `vehiclePlate` / `metrics.distanceKm` / `updatedAt` / `totalCount` / `sort=time_asc`。
+3. `GET /api/v1/vehicles` 提供 `shortName` / `plate` / `powertrainLabel` / `odometerKm` / `updatedAt`。
+4. `reportNo` 由服务端稳定生成；`verification` 返回真实校验状态；里程碑与字段随 OpenAPI 发布。
+5. 统一错误体、ETag / 304、`Cache-Control` 与超时 / 重试约定。
 
 ---
 
@@ -1453,6 +1770,7 @@ PDF 不依赖设备字体，必须自带中文：
 | 长图（P1） | `ReportImageBuilder` | `RepaintBoundary` | 尺寸、清晰度、分享 |
 | 加载 / 错误 / 空态 | `SkeletonBox` / `SectionError` / `EmptyState` | `AsyncValue` | 骨架、重试、空月 |
 | 全屏缩放 | `ReportFullscreenPreview` | 页面快照 | 手势、关闭、状态保持 |
+| 接口接入 | `HttpReportApi` / `HttpReportRepository` | §7.4 | DTO mapper、ETag / 304、超时重试、不变量 |
 
 ---
 
