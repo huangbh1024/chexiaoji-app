@@ -25,8 +25,7 @@ class MockLedgerRepository implements LedgerRepository {
 
     final total = _sum(records);
     final daysInMonth = DateTime(month.year, month.month + 1, 0).day;
-    final isCurrentMonth =
-        month.year == now.year && month.month == now.month;
+    final isCurrentMonth = month.year == now.year && month.month == now.month;
     final lastDay = isCurrentMonth ? now.day : daysInMonth;
     final daily = <LedgerDailyPoint>[];
     for (var day = 1; day <= lastDay; day++) {
@@ -249,6 +248,7 @@ class MockLedgerRepository implements LedgerRepository {
           id: 'anchor-parking',
           vehicleId: _vehicles.first.id,
           vehicleShortName: _vehicles.first.shortName,
+          vehicleName: _vehicles.first.name,
           powertrain: _vehicles.first.powertrain,
           category: ExpenseCategory.parking,
           title: '万象城地下停车场',
@@ -322,7 +322,8 @@ class MockLedgerRepository implements LedgerRepository {
     DateTime time,
     _Lcg random,
   ) {
-    final id = 'ledger-${time.year}'
+    final id =
+        'ledger-${time.year}'
         '${time.month.toString().padLeft(2, '0')}'
         '${time.day.toString().padLeft(2, '0')}-$serial';
     switch (category) {
@@ -357,6 +358,7 @@ class MockLedgerRepository implements LedgerRepository {
           id: id,
           vehicleId: vehicle.id,
           vehicleShortName: vehicle.shortName,
+          vehicleName: vehicle.name,
           powertrain: vehicle.powertrain,
           category: category,
           title: _parkingTitles[random.next(_parkingTitles.length)],
@@ -377,6 +379,7 @@ class MockLedgerRepository implements LedgerRepository {
           id: id,
           vehicleId: vehicle.id,
           vehicleShortName: vehicle.shortName,
+          vehicleName: vehicle.name,
           powertrain: vehicle.powertrain,
           category: category,
           title: _tollTitles[random.next(_tollTitles.length)],
@@ -392,6 +395,7 @@ class MockLedgerRepository implements LedgerRepository {
           id: id,
           vehicleId: vehicle.id,
           vehicleShortName: vehicle.shortName,
+          vehicleName: vehicle.name,
           powertrain: vehicle.powertrain,
           category: category,
           title: _carWashTitles[random.next(_carWashTitles.length)],
@@ -408,6 +412,7 @@ class MockLedgerRepository implements LedgerRepository {
           id: id,
           vehicleId: vehicle.id,
           vehicleShortName: vehicle.shortName,
+          vehicleName: vehicle.name,
           powertrain: vehicle.powertrain,
           category: category,
           title: _otherTitles[random.next(_otherTitles.length)],
@@ -415,7 +420,8 @@ class MockLedgerRepository implements LedgerRepository {
           occurredAt: time,
           badgeText: vehicle.shortName,
           badgeKind: LedgerBadgeKind.vehicle,
-          description: _otherDescriptions[random.next(_otherDescriptions.length)],
+          description:
+              _otherDescriptions[random.next(_otherDescriptions.length)],
           statusText: '支付宝',
         );
     }
@@ -432,6 +438,7 @@ class MockLedgerRepository implements LedgerRepository {
       id: id,
       vehicleId: vehicle.id,
       vehicleShortName: vehicle.shortName,
+      vehicleName: vehicle.name,
       powertrain: vehicle.powertrain,
       category: ExpenseCategory.charging,
       title: _chargingTitles[id.hashCode.abs() % _chargingTitles.length],
@@ -442,6 +449,7 @@ class MockLedgerRepository implements LedgerRepository {
       metrics: LedgerMetrics(
         kwh: kwh,
         odometerKm: vehicle.odometerKm - id.hashCode.abs() % 4000,
+        distanceKm: 180 + id.hashCode.abs() % 420,
       ),
     );
   }
@@ -457,6 +465,7 @@ class MockLedgerRepository implements LedgerRepository {
       id: id ?? 'anchor-fuel',
       vehicleId: vehicle.id,
       vehicleShortName: vehicle.shortName,
+      vehicleName: vehicle.name,
       powertrain: vehicle.powertrain,
       category: ExpenseCategory.fuel,
       title: _fuelTitles[time.day % _fuelTitles.length],
@@ -467,6 +476,7 @@ class MockLedgerRepository implements LedgerRepository {
       metrics: LedgerMetrics(
         liters: liters,
         odometerKm: vehicle.odometerKm - time.day * 37,
+        distanceKm: 220 + (id ?? time.day.toString()).hashCode.abs() % 480,
       ),
     );
   }
@@ -482,6 +492,7 @@ class MockLedgerRepository implements LedgerRepository {
       id: id ?? 'anchor-maintenance',
       vehicleId: vehicle.id,
       vehicleShortName: vehicle.shortName,
+      vehicleName: vehicle.name,
       powertrain: vehicle.powertrain,
       category: ExpenseCategory.maintenance,
       title: "${vehicle.name.split(' ').first} 4S 售后中心",
@@ -518,21 +529,23 @@ class MockLedgerRepository implements LedgerRepository {
   }
 
   _MockVehicle _pickVehicle(ExpenseCategory category, _Lcg random) {
-    final candidates = _vehicles.where((vehicle) {
-      switch (category) {
-        case ExpenseCategory.charging:
-          return vehicle.powertrain == PowertrainType.ev ||
-              vehicle.powertrain == PowertrainType.phev;
-        case ExpenseCategory.fuel:
-          return vehicle.powertrain != PowertrainType.ev;
-        case ExpenseCategory.maintenance:
-        case ExpenseCategory.parking:
-        case ExpenseCategory.toll:
-        case ExpenseCategory.carWash:
-        case ExpenseCategory.other:
-          return true;
-      }
-    }).toList(growable: false);
+    final candidates = _vehicles
+        .where((vehicle) {
+          switch (category) {
+            case ExpenseCategory.charging:
+              return vehicle.powertrain == PowertrainType.ev ||
+                  vehicle.powertrain == PowertrainType.phev;
+            case ExpenseCategory.fuel:
+              return vehicle.powertrain != PowertrainType.ev;
+            case ExpenseCategory.maintenance:
+            case ExpenseCategory.parking:
+            case ExpenseCategory.toll:
+            case ExpenseCategory.carWash:
+            case ExpenseCategory.other:
+              return true;
+          }
+        })
+        .toList(growable: false);
     return candidates[random.next(candidates.length)];
   }
 
@@ -621,39 +634,17 @@ const _chargingTitles = [
   '星星充电 · 高新园站',
 ];
 
-const _fuelTitles = [
-  '中国石油 · 92#汽油',
-  '中国石化 · 95#汽油',
-  '中海油 · 92#汽油',
-];
+const _fuelTitles = ['中国石油 · 92#汽油', '中国石化 · 95#汽油', '中海油 · 92#汽油'];
 
-const _maintenanceProjects = [
-  '更换机油机滤',
-  '四轮定位 + 刹车检查',
-  '空调滤芯 + 制动液更换',
-];
+const _maintenanceProjects = ['更换机油机滤', '四轮定位 + 刹车检查', '空调滤芯 + 制动液更换'];
 
-const _parkingTitles = [
-  '万象城地下停车场',
-  '市民中心停车场',
-  '科技园 P3 停车场',
-];
+const _parkingTitles = ['万象城地下停车场', '市民中心停车场', '科技园 P3 停车场'];
 
-const _tollTitles = [
-  '广深沿江高速 ETC',
-  '南光高速 ETC',
-  '深岑高速 ETC',
-];
-const _tollDescriptions = [
-  '宝安入口 → 南沙出口 · 95折自动扣费',
-  '西丽入口 → 前海出口 · ETC 95折',
-];
+const _tollTitles = ['广深沿江高速 ETC', '南光高速 ETC', '深岑高速 ETC'];
+const _tollDescriptions = ['宝安入口 → 南沙出口 · 95折自动扣费', '西丽入口 → 前海出口 · ETC 95折'];
 
 const _carWashTitles = ['途虎养车 · 精细洗车', '车享家 · 标准洗车'];
-const _carWashDescriptions = [
-  '高压精洗+内饰除尘 · 会员优惠',
-  '标准普洗 · 含轮胎清洁',
-];
+const _carWashDescriptions = ['高压精洗+内饰除尘 · 会员优惠', '标准普洗 · 含轮胎清洁'];
 
 const _otherTitles = ['平安车险 · 商业险', '车管所 · 年检代办'];
 const _otherDescriptions = ['机动车交通事故责任强制保险', '年检代办服务费'];
