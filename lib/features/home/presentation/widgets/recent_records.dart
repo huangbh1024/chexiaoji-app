@@ -89,6 +89,9 @@ class RecentRecords extends ConsumerWidget {
                             color: palette.surfaceContainer,
                           ),
                         _RecordRow(
+                          key: index == 0
+                              ? const Key('recent-record-first')
+                              : null,
                           item: items[index],
                           onTap: () => _openDetail(
                             context,
@@ -143,7 +146,7 @@ class RecentRecords extends ConsumerWidget {
 }
 
 class _RecordRow extends StatelessWidget {
-  const _RecordRow({required this.item, required this.onTap});
+  const _RecordRow({super.key, required this.item, required this.onTap});
 
   final RecordItem item;
   final VoidCallback onTap;

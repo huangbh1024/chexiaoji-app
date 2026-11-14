@@ -102,6 +102,25 @@ void main() {
     expect(find.text('¥0.17/km'), findsNothing);
   });
 
+  testWidgets('首页最近记录点击进入详情', (tester) async {
+    await _pumpHome(tester);
+
+    await tester.dragUntilVisible(
+      find.text('最近记录'),
+      find.byType(CustomScrollView),
+      const Offset(0, -220),
+    );
+    await tester.pumpAndSettle();
+    await tester.drag(find.byType(CustomScrollView), const Offset(0, -260));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('recent-record-first')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('开销详情'), findsOneWidget);
+    expect(find.text('结算明细'), findsOneWidget);
+  });
+
   testWidgets('底部账单/统计与中央 FAB 保持设计间距', (tester) async {
     await _pumpHome(tester);
 
