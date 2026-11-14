@@ -3,6 +3,7 @@ import 'package:material_ui/material_ui.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_typography.dart';
 import '../../../../core/widgets/app_card.dart';
+import '../../../../core/widgets/skeleton_box.dart';
 import '../../domain/expense_detail_models.dart';
 import '../../domain/expense_detail_presenter.dart';
 import '../expense_detail_style.dart';
@@ -57,23 +58,29 @@ class DetailTagsNoteCard extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 12),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  for (final tag in detail.tags)
-                    _TagPill(
-                      tag: tag,
-                      onTap: () => onRemoveTag(tag),
-                    ),
-                  _AddTagPill(onTap: onAddTag),
-                ],
-              ),
+              if (isSyncing && detail.tags.isEmpty)
+                const SkeletonBox(width: 168, height: 24, radius: 999)
+              else
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    for (final tag in detail.tags)
+                      _TagPill(
+                        tag: tag,
+                        onTap: () => onRemoveTag(tag),
+                      ),
+                    _AddTagPill(onTap: onAddTag),
+                  ],
+                ),
               const SizedBox(height: 12),
-              _NoteBlock(
-                note: detail.noteText,
-                onEdit: onEditNote,
-              ),
+              if (isSyncing && !detail.hasNote)
+                const SkeletonBox(height: 64, radius: 16)
+              else
+                _NoteBlock(
+                  note: detail.noteText,
+                  onEdit: onEditNote,
+                ),
             ],
           ),
         ),
