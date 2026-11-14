@@ -167,6 +167,50 @@ class MockLedgerRepository implements LedgerRepository {
     return null;
   }
 
+  /// 同步返回 [from, to] 内的未删除记录，供统计页与报表测试聚合。
+  ///
+  /// 只按自然月遍历，不生成范围外的月份。
+  List<LedgerRecord> recordsBetween(DateTime from, DateTime to) {
+    final result = <LedgerRecord>[];
+    var cursor = DateTime(from.year, from.month);
+    final end = DateTime(to.year, to.month);
+    while (!cursor.isAfter(end)) {
+      for (final record in _recordsFor(cursor)) {
+        if (_deletedIds.contains(record.id)) {
+          continue;
+        }
+        if (record.occurredAt.isBefore(from) || record.occurredAt.isAfter(to)) {
+          continue;
+        }
+        result.add(record);
+      }
+      cursor = DateTime(cursor.year, cursor.month + 1);
+    }
+    result.sort((a, b) => a.occurredAt.compareTo(b.occurredAt));
+    return List<LedgerRecord>.unmodifiable(result);
+  }
+
+  /// 最近 24 个月内最早一条记录的时间；无记录返回 null。
+  DateTime? firstRecordAt({String? vehicleId}) {
+    final now = DateTime.now();
+    DateTime? earliest;
+    for (var i = 23; i >= 0; i--) {
+      final month = DateTime(now.year, now.month - i);
+      for (final record in _recordsFor(month)) {
+        if (_deletedIds.contains(record.id)) {
+          continue;
+        }
+        if (vehicleId != null && record.vehicleId != vehicleId) {
+          continue;
+        }
+        if (earliest == null || record.occurredAt.isBefore(earliest)) {
+          earliest = record.occurredAt;
+        }
+      }
+    }
+    return earliest;
+  }
+
   /// 标记记录已删除，后续列表 / 汇总 / 详情都不再返回。
   void markDeleted(String id) {
     _deletedIds.add(id);

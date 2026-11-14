@@ -89,56 +89,17 @@ MonthlyReport buildMonthlyReport({
 }
 
 /// 月度里程：按车分组取里程表读数极差；不足两条时用单笔距离求和。
-({int km, ReportDistanceSource source}) computeDistanceKmByVehicle(
+({int km, DistanceSource source}) computeDistanceKmByVehicle(
   List<LedgerRecord> records,
 ) {
-  final readings = <String, List<int>>{};
-  final fallback = <String, int>{};
-
-  for (final record in records) {
-    final odometer = record.metrics.odometerKm;
-    if (odometer != null && odometer > 0) {
-      readings.putIfAbsent(record.vehicleId, () => <int>[]).add(odometer);
-    }
-    final distance = record.metrics.distanceKm;
-    if (distance != null && distance > 0) {
-      fallback.update(
-        record.vehicleId,
-        (value) => value + distance,
-        ifAbsent: () => distance,
-      );
-    }
-  }
-
-  final vehicleIds = <String>{...readings.keys, ...fallback.keys};
-  var km = 0;
-  var usedOdometer = false;
-  var usedRecords = false;
-
-  for (final vehicleId in vehicleIds) {
-    final values = readings[vehicleId];
-    if (values != null && values.length >= 2) {
-      values.sort();
-      final delta = values.last - values.first;
-      if (delta > 0) {
-        km += delta;
-        usedOdometer = true;
-        continue;
-      }
-    }
-    final sum = fallback[vehicleId] ?? 0;
-    if (sum > 0) {
-      km += sum;
-      usedRecords = true;
-    }
-  }
-
-  final source = usedRecords
-      ? ReportDistanceSource.records
-      : usedOdometer
-      ? ReportDistanceSource.odometer
-      : ReportDistanceSource.none;
-  return (km: km, source: source);
+  return computeDistance([
+    for (final record in records)
+      DistanceSample(
+        vehicleId: record.vehicleId,
+        odometerKm: record.metrics.odometerKm,
+        distanceKm: record.metrics.distanceKm,
+      ),
+  ]);
 }
 
 /// 按 6 个报表分组汇总金额与百分比。

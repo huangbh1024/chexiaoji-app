@@ -1,3 +1,4 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../app/theme/app_colors.dart';
@@ -6,54 +7,48 @@ import '../app/theme/app_typography.dart';
 import '../core/widgets/app_bottom_nav.dart';
 import '../features/home/presentation/home_page.dart';
 import '../features/ledger/presentation/ledger_page.dart';
+import '../features/stats/presentation/stats_page.dart';
+import 'tab.dart';
 
 /// 应用主壳：Tab 容器 + 底部导航 + 中央 FAB。
 ///
 /// - 使用 [IndexedStack] 保留各 Tab 的滚动位置与页面状态；
-/// - 未访问过的 Tab 不构建，避免启动时提前发起账单页请求；
-/// - 重复点击当前 Tab 滚动回顶部。
-class AppTabShell extends StatefulWidget {
+/// - 未访问过的 Tab 不构建，避免启动时提前发起账单 / 统计请求；
+/// - 重复点击当前 Tab 滚动回顶部；
+/// - 选中项由 [appTabProvider] 持有，页面可跨 Tab 跳转。
+class AppTabShell extends ConsumerStatefulWidget {
   const AppTabShell({super.key});
 
   @override
-  State<AppTabShell> createState() => _AppTabShellState();
+  ConsumerState<AppTabShell> createState() => _AppTabShellState();
 }
 
-class _AppTabShellState extends State<AppTabShell> {
-  static const _homeIndex = 0;
-  static const _ledgerIndex = 1;
-
-  final _homeScrollController = ScrollController();
-  final _ledgerScrollController = ScrollController();
-  final _visitedTabs = <int>{_homeIndex};
-
-  int _selectedIndex = _homeIndex;
+class _AppTabShellState extends ConsumerState<AppTabShell> {
+  final _scrollControllers = <AppTab, ScrollController>{
+    for (final tab in AppTab.values) tab: ScrollController(),
+  };
+  final _visitedTabs = <AppTab>{AppTab.home};
 
   @override
   void dispose() {
-    _homeScrollController.dispose();
-    _ledgerScrollController.dispose();
+    for (final controller in _scrollControllers.values) {
+      controller.dispose();
+    }
     super.dispose();
   }
 
   void _onTabSelected(int index) {
-    if (index == _selectedIndex) {
-      _scrollToTop(index);
+    final tab = AppTab.values[index];
+    if (tab == ref.read(appTabProvider)) {
+      _scrollToTop(tab);
       return;
     }
-    setState(() {
-      _selectedIndex = index;
-      _visitedTabs.add(index);
-    });
+    _visitedTabs.add(tab);
+    ref.read(appTabProvider.notifier).select(tab);
   }
 
-  void _scrollToTop(int index) {
-    ScrollController? controller;
-    if (index == _homeIndex) {
-      controller = _homeScrollController;
-    } else if (index == _ledgerIndex) {
-      controller = _ledgerScrollController;
-    }
+  void _scrollToTop(AppTab tab) {
+    final controller = _scrollControllers[tab];
     if (controller == null || !controller.hasClients) {
       return;
     }
@@ -80,6 +75,12 @@ class _AppTabShellState extends State<AppTabShell> {
   @override
   Widget build(BuildContext context) {
     final palette = context.palette;
+    final current = ref.watch(appTabProvider);
+    ref.listen<AppTab>(appTabProvider, (previous, next) {
+      _visitedTabs.add(next);
+    });
+
+    bool visited(AppTab tab) => _visitedTabs.contains(tab) || current == tab;
 
     return Scaffold(
       extendBody: true,
@@ -87,18 +88,18 @@ class _AppTabShellState extends State<AppTabShell> {
       body: Stack(
         children: [
           IndexedStack(
-            index: _selectedIndex,
+            index: current.index,
             children: [
-              HomePage(scrollController: _homeScrollController),
-              if (_visitedTabs.contains(_ledgerIndex))
-                LedgerPage(scrollController: _ledgerScrollController)
+              HomePage(scrollController: _scrollControllers[AppTab.home]!),
+              if (visited(AppTab.ledger))
+                LedgerPage(scrollController: _scrollControllers[AppTab.ledger]!)
               else
                 const SizedBox.shrink(),
-              if (_visitedTabs.contains(2))
-                const _ComingSoonTab(label: '统计', icon: Icons.pie_chart_rounded)
+              if (visited(AppTab.stats))
+                StatsPage(scrollController: _scrollControllers[AppTab.stats]!)
               else
                 const SizedBox.shrink(),
-              if (_visitedTabs.contains(3))
+              if (visited(AppTab.profile))
                 const _ComingSoonTab(label: '我的', icon: Icons.person_rounded)
               else
                 const SizedBox.shrink(),
@@ -112,7 +113,7 @@ class _AppTabShellState extends State<AppTabShell> {
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 448),
                 child: AppBottomNav(
-                  selectedIndex: _selectedIndex,
+                  selectedIndex: current.index,
                   onTap: _onTabSelected,
                   onFab: () => _toast('记账页待接入'),
                 ),

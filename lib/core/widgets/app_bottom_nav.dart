@@ -50,54 +50,61 @@ class AppBottomNav extends StatelessWidget {
       top: Radius.circular(tokens.radiusNav),
     );
 
-    return SizedBox(
-      height: 84 + bottomInset,
-      child: Stack(
-        clipBehavior: Clip.none,
-        alignment: Alignment.topCenter,
-        children: [
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: Container(
-              height: navHeight + bottomInset,
-              decoration: BoxDecoration(
-                borderRadius: radius,
-                boxShadow: tokens.navShadow,
-              ),
-              child: ClipRRect(
-                borderRadius: radius,
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-                  child: Container(
-                    color: palette.navBar.withValues(alpha: 0.92),
-                    padding: EdgeInsets.only(
-                      left: 16,
-                      right: 16,
-                      top: 4,
-                      bottom: bottomInset + 12,
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceAround,
-                      children: [
-                        for (var index = 0; index < _items.length; index++) ...[
-                          if (index == 2) const SizedBox(width: 56),
-                          _NavItem(
-                            item: _items[index],
-                            active: index == selectedIndex,
-                            onTap: () => onTap(index),
-                          ),
+    return MediaQuery.withClampedTextScaling(
+      maxScaleFactor: 1.1,
+      child: SizedBox(
+        height: 84 + bottomInset,
+        child: Stack(
+          clipBehavior: Clip.none,
+          alignment: Alignment.topCenter,
+          children: [
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: Container(
+                height: navHeight + bottomInset,
+                decoration: BoxDecoration(
+                  borderRadius: radius,
+                  boxShadow: tokens.navShadow,
+                ),
+                child: ClipRRect(
+                  borderRadius: radius,
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                    child: Container(
+                      color: palette.navBar.withValues(alpha: 0.92),
+                      padding: EdgeInsets.only(
+                        left: 16,
+                        right: 16,
+                        top: 4,
+                        bottom: bottomInset + 12,
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceAround,
+                        children: [
+                          for (
+                            var index = 0;
+                            index < _items.length;
+                            index++
+                          ) ...[
+                            if (index == 2) const SizedBox(width: 56),
+                            _NavItem(
+                              item: _items[index],
+                              active: index == selectedIndex,
+                              onTap: () => onTap(index),
+                            ),
+                          ],
                         ],
-                      ],
+                      ),
                     ),
                   ),
                 ),
               ),
             ),
-          ),
-          Positioned(top: 0, child: _Fab(onTap: onFab)),
-        ],
+            Positioned(top: 0, child: _Fab(onTap: onFab)),
+          ],
+        ),
       ),
     );
   }

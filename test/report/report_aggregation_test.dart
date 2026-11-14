@@ -91,7 +91,7 @@ void main() {
       expect(report.days, 30);
       expect(report.daily, hasLength(14));
       expect(report.distanceKm, 400);
-      expect(report.distanceSource, ReportDistanceSource.odometer);
+      expect(report.distanceSource, DistanceSource.odometer);
       expect(report.costPerKmCents, 19);
       expect(report.momPercent, closeTo(7.2857, 0.001));
       expect(report.momTrend, TrendDirection.up);
@@ -180,7 +180,7 @@ void main() {
       );
 
       expect(report.distanceKm, 300);
-      expect(report.distanceSource, ReportDistanceSource.records);
+      expect(report.distanceSource, DistanceSource.records);
       expect(report.costPerKmCents, 10);
       expect(report.kwhPer100km, closeTo(6.67, 0.01));
     });
@@ -201,7 +201,7 @@ void main() {
       );
 
       expect(report.distanceKm, 0);
-      expect(report.distanceSource, ReportDistanceSource.none);
+      expect(report.distanceSource, DistanceSource.none);
       expect(report.costPerKmCents, isNull);
       expect(report.kwhPer100km, isNull);
       expect(report.litersPer100km, isNull);

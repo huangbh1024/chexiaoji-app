@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -9,6 +7,7 @@ import '../../../../app/theme/app_typography.dart';
 import '../../../../core/format/formatters.dart';
 import '../../domain/home_models.dart';
 import '../../domain/providers.dart';
+import '../../../../core/widgets/hero_wave_background.dart';
 import '../../../../core/widgets/section_error.dart';
 import '../../../../core/widgets/skeleton_box.dart';
 
@@ -75,45 +74,7 @@ class _HeroContent extends StatelessWidget {
         borderRadius: BorderRadius.circular(tokens.radiusCard),
         child: Stack(
           children: [
-            Positioned(
-              right: -56,
-              top: -56,
-              child: Container(
-                width: 176,
-                height: 176,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: RadialGradient(
-                    colors: [
-                      Colors.white.withValues(alpha: 0.24),
-                      Colors.white.withValues(alpha: 0),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            Positioned(
-              left: -64,
-              bottom: -64,
-              child: Container(
-                width: 192,
-                height: 192,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: RadialGradient(
-                    colors: [
-                      const Color(0xFF63FCC0).withValues(alpha: 0.20),
-                      const Color(0xFF63FCC0).withValues(alpha: 0),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            const Positioned.fill(
-              child: IgnorePointer(
-                child: CustomPaint(painter: _HeroWavePainter()),
-              ),
-            ),
+            const Positioned.fill(child: HeroWaveBackground()),
             Padding(
               padding: const EdgeInsets.all(20),
               child: Column(
@@ -347,47 +308,4 @@ class _HeroSkeleton extends StatelessWidget {
       ),
     );
   }
-}
-
-class _HeroWavePainter extends CustomPainter {
-  const _HeroWavePainter();
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    canvas.save();
-    canvas.scale(size.width / 340, size.height / 180);
-
-    final fill = Paint()
-      ..color = Colors.white.withValues(alpha: 0.12)
-      ..style = PaintingStyle.fill;
-    final fillPath = Path()
-      ..moveTo(-20, 70)
-      ..cubicTo(60, 30, 140, 130, 240, 60)
-      ..cubicTo(300, 20, 330, 80, 380, 50)
-      ..lineTo(380, 200)
-      ..lineTo(-20, 200)
-      ..close();
-    canvas.drawPath(fillPath, fill);
-
-    final stroke = Paint()
-      ..color = Colors.white.withValues(alpha: 0.28)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.5;
-    final linePath = Path()
-      ..moveTo(-10, 110)
-      ..cubicTo(70, 80, 160, 140, 260, 90)
-      ..cubicTo(310, 65, 340, 110, 380, 95);
-    for (final metric in linePath.computeMetrics()) {
-      var distance = 0.0;
-      while (distance < metric.length) {
-        final end = math.min(distance + 4, metric.length);
-        canvas.drawPath(metric.extractPath(distance, end), stroke);
-        distance = end + 4;
-      }
-    }
-    canvas.restore();
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

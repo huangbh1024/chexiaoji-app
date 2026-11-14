@@ -10,6 +10,9 @@ enum PowertrainType { ev, hev, phev, ice }
 
 enum TrendDirection { up, down, flat, none }
 
+/// 保养提醒状态，首页与统计页共用。
+enum MaintenanceStatus { normal, warning, overdue }
+
 enum ExpenseCategory {
   charging('充电'),
   fuel('加油'),

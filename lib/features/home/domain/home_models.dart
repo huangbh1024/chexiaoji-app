@@ -5,8 +5,6 @@ import '../../../core/domain/vehicle.dart';
 export '../../../core/domain/enums.dart';
 export '../../../core/domain/vehicle.dart';
 
-enum MaintenanceStatus { normal, warning, overdue }
-
 enum TrendRange {
   d7('7d', '7天'),
   d30('30d', '30天'),
