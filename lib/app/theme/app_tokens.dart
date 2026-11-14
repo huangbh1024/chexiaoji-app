@@ -14,6 +14,7 @@ class AppTokens extends ThemeExtension<AppTokens> {
     required this.radiusCard,
     required this.radiusChip,
     required this.radiusPill,
+    required this.radiusNav,
     required this.cardShadow,
     required this.heroShadow,
     required this.selectedShadow,
@@ -33,6 +34,7 @@ class AppTokens extends ThemeExtension<AppTokens> {
   final double radiusCard;
   final double radiusChip;
   final double radiusPill;
+  final double radiusNav;
   final List<BoxShadow> cardShadow;
   final List<BoxShadow> heroShadow;
   final List<BoxShadow> selectedShadow;
@@ -52,6 +54,7 @@ class AppTokens extends ThemeExtension<AppTokens> {
     radiusCard: 16,
     radiusChip: 6,
     radiusPill: 999,
+    radiusNav: 48,
     cardShadow: [
       BoxShadow(
         color: Color(0x0A0F172A),
@@ -104,6 +107,7 @@ class AppTokens extends ThemeExtension<AppTokens> {
     radiusCard: 16,
     radiusChip: 6,
     radiusPill: 999,
+    radiusNav: 48,
     cardShadow: [
       BoxShadow(
         color: Color(0x66000000),
@@ -168,6 +172,7 @@ class AppTokens extends ThemeExtension<AppTokens> {
       radiusCard: _lerpDouble(radiusCard, other.radiusCard, t),
       radiusChip: _lerpDouble(radiusChip, other.radiusChip, t),
       radiusPill: _lerpDouble(radiusPill, other.radiusPill, t),
+      radiusNav: _lerpDouble(radiusNav, other.radiusNav, t),
       cardShadow: shadow(cardShadow, other.cardShadow),
       heroShadow: shadow(heroShadow, other.heroShadow),
       selectedShadow: shadow(selectedShadow, other.selectedShadow),

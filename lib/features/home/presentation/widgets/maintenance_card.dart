@@ -55,7 +55,7 @@ class _MaintenanceContent extends StatelessWidget {
                 height: 24,
                 decoration: BoxDecoration(
                   color: accentSoft,
-                  borderRadius: BorderRadius.circular(8),
+                  shape: BoxShape.circle,
                 ),
                 child: Icon(Icons.build_rounded, size: 16, color: accent),
               ),

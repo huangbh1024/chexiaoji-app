@@ -44,12 +44,13 @@ class HomeBottomNav extends StatelessWidget {
     final bottomInset = MediaQuery.paddingOf(context).bottom;
     final navHeight = tokens.navHeight;
     final radius = BorderRadius.vertical(
-      top: Radius.circular(tokens.radiusCard),
+      top: Radius.circular(tokens.radiusNav),
     );
 
     return SizedBox(
       height: 84 + bottomInset,
       child: Stack(
+        clipBehavior: Clip.none,
         alignment: Alignment.topCenter,
         children: [
           Positioned(
@@ -129,11 +130,11 @@ class _NavItem extends StatelessWidget {
               fontWeight: active ? FontWeight.w700 : FontWeight.w500,
             ),
           ),
-          const SizedBox(height: 3),
+          const SizedBox(height: 4),
           AnimatedContainer(
             duration: const Duration(milliseconds: 180),
             width: 16,
-            height: 3,
+            height: 4,
             decoration: BoxDecoration(
               color: active ? palette.primary : Colors.transparent,
               borderRadius: BorderRadius.circular(999),
@@ -157,16 +158,12 @@ class _Fab extends StatelessWidget {
       key: const Key('quick-add-fab'),
       onTap: onTap,
       child: Container(
-        width: 56,
-        height: 56,
+        width: 64,
+        height: 64,
+        padding: const EdgeInsets.all(4),
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          gradient: LinearGradient(
-            begin: Alignment.bottomLeft,
-            end: Alignment.topRight,
-            colors: [palette.primary, const Color(0xFF3FDFA5)],
-          ),
-          border: Border.all(color: palette.background, width: 4),
+          color: palette.background,
           boxShadow: [
             BoxShadow(
               color: palette.primary.withValues(alpha: 0.45),
@@ -176,7 +173,17 @@ class _Fab extends StatelessWidget {
             ),
           ],
         ),
-        child: const Icon(Icons.add_rounded, size: 28, color: Colors.white),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            gradient: LinearGradient(
+              begin: Alignment.bottomLeft,
+              end: Alignment.topRight,
+              colors: [const Color(0xFF006C4B), palette.primary],
+            ),
+          ),
+          child: const Icon(Icons.add_rounded, size: 28, color: Colors.white),
+        ),
       ),
     );
   }

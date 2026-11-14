@@ -52,7 +52,7 @@ class _ConsumptionContent extends StatelessWidget {
                 height: 24,
                 decoration: BoxDecoration(
                   color: palette.primary.withValues(alpha: 0.14),
-                  borderRadius: BorderRadius.circular(8),
+                  shape: BoxShape.circle,
                 ),
                 child: Icon(
                   Icons.speed_rounded,

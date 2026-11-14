@@ -331,7 +331,7 @@ class VehicleCard extends StatelessWidget {
                             height: 28,
                             decoration: BoxDecoration(
                               color: color.withValues(alpha: 0.14),
-                              borderRadius: BorderRadius.circular(8),
+                              shape: BoxShape.circle,
                             ),
                             child: Icon(
                               vehicle.powertrain.icon,
