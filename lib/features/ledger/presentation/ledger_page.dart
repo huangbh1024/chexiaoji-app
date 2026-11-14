@@ -10,6 +10,8 @@ import '../../../core/widgets/section_error.dart';
 import '../../../core/widgets/skeleton_box.dart';
 import '../domain/ledger_models.dart';
 import '../domain/providers.dart';
+import '../../report/domain/report_models.dart';
+import '../../report/presentation/monthly_report_page.dart';
 import 'widgets/ledger_category_chips.dart';
 import 'widgets/ledger_day_header.dart';
 import 'widgets/ledger_footer.dart';
@@ -62,10 +64,7 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
 
   Future<void> _refresh() async {
     final filter = ref.read(ledgerFilterProvider);
-    final scope = LedgerScope(
-      month: filter.month,
-      vehicleId: filter.vehicleId,
-    );
+    final scope = LedgerScope(month: filter.month, vehicleId: filter.vehicleId);
     ref.invalidate(ledgerSummaryProvider(scope));
     await ref.read(ledgerRecordsProvider.notifier).refresh();
   }
@@ -81,6 +80,20 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
           duration: const Duration(seconds: 2),
         ),
       );
+  }
+
+  void _openReport() {
+    final filter = ref.read(ledgerFilterProvider);
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (context) => MonthlyReportPage(
+          initialScope: ReportScope(
+            month: filter.month,
+            vehicleId: filter.vehicleId,
+          ),
+        ),
+      ),
+    );
   }
 
   void _showSortSheet() {
@@ -193,7 +206,7 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
                     height: tokens.headerHeight,
                     child: LedgerHeader(
                       hasActiveFilter: hasActiveFilter,
-                      onExport: () => _toast('导出功能开发中'),
+                      onExport: _openReport,
                       onFilter: _showSortSheet,
                     ),
                   ),
@@ -250,8 +263,7 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
           sliver: SliverToBoxAdapter(
             child: SectionError(
               message: list.errorMessage!,
-              onRetry: () =>
-                  ref.read(ledgerRecordsProvider.notifier).retry(),
+              onRetry: () => ref.read(ledgerRecordsProvider.notifier).retry(),
             ),
           ),
         ),
