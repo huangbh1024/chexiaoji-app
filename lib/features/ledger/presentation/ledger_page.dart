@@ -164,6 +164,17 @@ class _LedgerPageState extends ConsumerState<LedgerPage> {
         filter.category != null ||
         filter.sort != LedgerSort.timeDesc;
 
+    ref.listen<LedgerQuery>(ledgerFilterProvider, (previous, next) {
+      if (previous == next || !widget.scrollController.hasClients) {
+        return;
+      }
+      widget.scrollController.animateTo(
+        0,
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOutCubic,
+      );
+    });
+
     return Center(
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 448),

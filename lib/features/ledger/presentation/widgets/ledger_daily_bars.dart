@@ -71,7 +71,7 @@ class LedgerDailyBars extends StatelessWidget {
       return palette.primary;
     }
     if (peakDate != null && isSameDay(point.date, peakDate!)) {
-      return AppColors.secondary;
+      return palette.secondary;
     }
     final category = point.dominantCategory;
     if (category == null || point.amountCents <= 0) {
@@ -93,7 +93,7 @@ class LedgerDailyBars extends StatelessWidget {
     }
     if (peakDate != null && isSameDay(point.date, peakDate!)) {
       return Border.all(
-        color: AppColors.secondary.withValues(alpha: 0.35),
+        color: palette.secondary.withValues(alpha: 0.35),
         width: 2,
       );
     }

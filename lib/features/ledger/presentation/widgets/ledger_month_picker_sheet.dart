@@ -27,8 +27,9 @@ class _LedgerMonthPickerSheet extends StatefulWidget {
 }
 
 class _LedgerMonthPickerSheetState extends State<_LedgerMonthPickerSheet> {
+  int get _month => widget.current.month;
+
   late int _year = widget.current.year;
-  late int _month = widget.current.month;
 
   @override
   Widget build(BuildContext context) {

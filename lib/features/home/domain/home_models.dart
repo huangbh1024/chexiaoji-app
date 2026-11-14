@@ -1,4 +1,5 @@
 import '../../../core/domain/enums.dart';
+import '../../../core/domain/vehicle.dart';
 
 /// 基础枚举与车辆模型已迁到 `core/domain`，这里 re-export 保持历史 import 可用。
 export '../../../core/domain/enums.dart';

@@ -281,8 +281,8 @@ class LedgerListState {
   });
 
   const LedgerListState.loading()
-    : items = <LedgerRecord>[],
-      rows = <LedgerRow>[],
+    : items = const <LedgerRecord>[],
+      rows = const <LedgerRow>[],
       cursor = null,
       hasMore = true,
       isLoading = true,
@@ -291,8 +291,8 @@ class LedgerListState {
       errorMessage = null;
 
   const LedgerListState.empty()
-    : items = <LedgerRecord>[],
-      rows = <LedgerRow>[],
+    : items = const <LedgerRecord>[],
+      rows = const <LedgerRow>[],
       cursor = null,
       hasMore = false,
       isLoading = false,
