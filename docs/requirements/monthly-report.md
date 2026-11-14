@@ -3,17 +3,24 @@
 | 项目 | 内容 |
 | --- | --- |
 | 页面 | 账单 → 月度报表与导出（二级页，非底部 Tab） |
-| 版本 | v0.2（口径已定） |
+| 版本 | v0.3（口径与接口已定） |
 | 更新日期 | 2026-11-14 |
 | 设计稿 | [Stitch · 账单导出与月度报表预览页](https://stitch.google.com/projects/9615374848161425677?node-id=6e6486f813ee4d1d87708cf7fab49890) |
 | 设计系统 | Lumina Velocity（Plus Jakarta Sans、翡翠绿主色、全圆角、柔和阴影） |
 | 关联页面 | 账单页（入口）、首页、统计页、我的 |
 | 关联文档 | [账单页需求文档](ledger.md) · [账单页技术方案](../technical/ledger.md) · [首页需求文档](home-dashboard.md) |
 | 技术方案 | [docs/technical/monthly-report.md](../technical/monthly-report.md) |
-| 状态 | 口径已定；导出依赖与接口契约待后端确认 |
+| 状态 | 口径与接口已定；后端按 §8 实现，客户端按技术方案 M0–M5 推进 |
 
 > 约定：文中「设计稿」指上述 Stitch 浅色稿的实际像素、文案与交互脚本；「建议」表示本文档提出的、设计稿未覆盖但实现需要的规则，需产品确认。
 > 设计稿中的示例数据存在少量自相矛盾或跨页不一致（见 §13），本文档以「口径定义」为准，不以示例数字反推规则。
+
+**v0.3 相对 v0.2 的变更**
+
+1. 后端确认提供月度报表聚合、流水扩展与车辆接口，§8 从「草案」升级为实施契约。
+2. 报表接口补充 `timezone`、`dataUpdatedAt`、`distanceSource`、`schemaVersion`、分类百分比与错误体；`costPerKmCents` 与百公里能耗在无里程时返回 `null`。
+3. 流水接口补充 `vehicleName`、`vehiclePlate`、`metrics.distanceKm`、`updatedAt`、`totalCount` 与 `sort=time_asc`。
+4. 客户端新增 M5 接口接入阶段，生产环境由 `HttpReportRepository` 替换 Mock。
 
 **v0.2 相对 v0.1 的变更**
 
@@ -576,7 +583,7 @@
 | 指标 | 公式 | 边界 |
 | --- | --- | --- |
 | 报表总额 | Σ 当月该车辆范围全部记录金额（支出正、退款负） | 无记录 → 0 |
-| 笔数 | 当月该车辆范围记录条数 | — |
+| 笔数 | 当月该车辆范围记录条数（含退款记录，文案为「收支」） | — |
 | 本月行驶 | max(月内里程表读数) − min(月内里程表读数) | 少于 2 条读数 → 若记录含单笔行驶距离则求和；否则 0 / `—` |
 | 综合每公里 | 报表总额 ÷ 本月行驶 | 里程 0 → `—`；保留 2 位小数 |
 | 充电量 | Σ 充电记录的 kWh | 无 → 0 |
@@ -589,6 +596,8 @@
 | 当月天数 | 当月自然日天数（28–31） | 用于「公里 · N天」 |
 | 累计总里程 | 单车 = 车辆 `odometerKm`；全部车辆 = Σ `odometerKm` | 车辆缺失 → `—` |
 
+> 里程来源由接口下发 `distanceSource`：`odometer`（月内读数极差）、`records`（单笔 `distanceKm` 求和）、`none`（无法计算）。`none` 时每公里成本与百公里能耗显示 `—`。
+
 ### 7.2 报表状态与单号
 
 | 状态 | 条件 | 徽标 | 日期文案 |
@@ -596,8 +605,8 @@
 | 记录中 | 范围月份 = 当前自然月 | 「记录中」橙 | 「数据截至 MM-DD HH:mm」 |
 | 已出账 | 范围月份 < 当前自然月 | 「已出账」蓝 | 「YYYY-MM-DD 结算」（月末最后一天） |
 
-- 单号格式 `RP-{YYYYMM}-{4 位序号}`；同一用户 + 月份 + 车辆范围在会话内稳定。
-- 单号仅用于报表展示与归档识别，不作为财务凭证编号；服务端返回时以服务端为准。
+- 单号格式 `RP-{YYYYMM}-{4 位序号}`；同一用户 + 月份 + 车辆范围**长期稳定**，由服务端生成。
+- 单号仅用于报表展示与归档识别，不作为财务凭证编号。
 - 未来月份不可选，不产生报表。
 
 ### 7.3 分类合并规则
@@ -665,21 +674,26 @@
 
 ---
 
-## 8. 接口契约草案（待后端确认）
+## 8. 接口契约（后端已确认提供，按此实现）
 
-> 客户端期望形态；金额统一整数分，时间 ISO 8601，分类使用枚举 key。客户端不自行拼装展示字符串。
+> 金额统一整数分，时间 ISO 8601，月份使用 `YYYY-MM`，分类使用枚举 key。客户端不自行拼装展示字符串。
+> 后端已确认提供以下接口与字段；详细字段字典、错误码、缓存与契约测试见[技术方案第 7.4 节](../technical/monthly-report.md#74-接口契约后端实现依据)。
 
 ```
-GET /api/v1/reports/monthly?month=2026-11&vehicleIds=all
+GET /api/v1/reports/monthly?month=2026-11&vehicleIds=all&tz=Asia/Shanghai
 → {
+    "schemaVersion": 1,
     "month": "2026-11",
+    "timezone": "Asia/Shanghai",
     "reportNo": "RP-202611-8821",
     "status": "recording | issued",
     "generatedAt": "2026-11-14T18:30:00+08:00",
+    "dataUpdatedAt": "2026-11-14T18:25:00+08:00",
     "settledAt": null,
     "totalCents": 128600,
     "recordCount": 6,
     "distanceKm": 2140,
+    "distanceSource": "odometer | records | none",
     "days": 30,
     "costPerKmCents": 60,
     "energy": {
@@ -693,39 +707,73 @@ GET /api/v1/reports/monthly?month=2026-11&vehicleIds=all
       {
         "id": "byd-han-ev",
         "name": "比亚迪 汉 EV",
+        "shortName": "汉 EV",
         "plate": "粤B·D82K6",
         "powertrain": "ev",
         "powertrainLabel": "纯电驱动",
-        "odometerKm": 18426
+        "odometerKm": 18426,
+        "recordCount": 6
       }
     ],
     "categories": [
-      { "key": "charging", "label": "充电动能", "amountCents": 38600, "count": 2 },
-      { "key": "maintenance", "label": "常规保养", "amountCents": 48000, "count": 1 },
-      { "key": "parking", "label": "临停泊车", "amountCents": 16800, "count": 1 },
-      { "key": "toll", "label": "高速通行", "amountCents": 13200, "count": 1 },
-      { "key": "carWashOther", "label": "洗车及其他", "amountCents": 12900, "count": 1 }
+      { "key": "charging", "label": "充电动能", "amountCents": 38600, "count": 2, "percent": 30 },
+      { "key": "maintenance", "label": "常规保养", "amountCents": 48000, "count": 1, "percent": 37 },
+      { "key": "parking", "label": "临停泊车", "amountCents": 16800, "count": 1, "percent": 13 },
+      { "key": "toll", "label": "高速通行", "amountCents": 13200, "count": 1, "percent": 10 },
+      { "key": "carWashOther", "label": "洗车及其他", "amountCents": 12900, "count": 1, "percent": 10 }
     ],
     "daily": [
-      { "date": "2026-11-01", "chargingCents": 0, "otherCents": 0, "dominantCategory": null },
-      { "date": "2026-11-15", "chargingCents": 0, "otherCents": 48000, "dominantCategory": "maintenance" }
+      { "date": "2026-11-01", "chargingCents": 0, "otherCents": 0, "recordCount": 0, "dominantCategory": null },
+      { "date": "2026-11-15", "chargingCents": 0, "otherCents": 48000, "recordCount": 1, "dominantCategory": "maintenance" }
     ],
     "verification": {
       "verified": true,
-      "text": "数据已通过云端对账校验 · 自动归档"
+      "text": "数据已通过云端对账校验 · 自动归档",
+      "checkedAt": "2026-11-14T18:26:00+08:00"
     }
   }
 
-GET /api/v1/ledger/records?month=2026-11&vehicleIds=all&limit=100&cursor=
-→ 复用账单页流水分页接口，供 CSV 明细导出；客户端循环拉取直到 hasMore=false。
+GET /api/v1/ledger/records?month=2026-11&vehicleIds=all&sort=time_asc&limit=100&cursor=
+→ {
+    "items": [
+      {
+        "id": "rec_123",
+        "vehicleId": "byd-han-ev",
+        "vehicleName": "比亚迪 汉 EV",
+        "vehicleShortName": "汉 EV",
+        "vehiclePlate": "粤B·D82K6",
+        "category": "charging",
+        "title": "特来电快充 · 科技园站",
+        "amountCents": 5110,
+        "occurredAt": "2026-11-14T08:42:00+08:00",
+        "description": null,
+        "metrics": {
+          "kwh": 38.5,
+          "liters": null,
+          "odometerKm": 18426,
+          "distanceKm": 300,
+          "durationMinutes": null,
+          "paymentMethod": "微信"
+        },
+        "statusText": null,
+        "note": null,
+        "updatedAt": "2026-11-14T08:43:10+08:00"
+      }
+    ],
+    "nextCursor": "eyJ...",
+    "hasMore": true,
+    "totalCount": 6
+  }
 ```
 
-- `categories` 已由服务端按 6 组归并；客户端只做展示与百分比兜底计算。
-- `daily` 只包含当月 1 日至今天（当前月）或月末（历史月）的数据点。缺少的日期客户端补 0，保证曲线连续。
-- `verification.verified = false` 时客户端显示本地汇总文案，不使用「云端对账校验」。
-- `reportNo` 由服务端生成并保持稳定；离线 / Mock 阶段客户端生成临时单号，联网后以服务端为准。
-- CSV 仍由客户端根据流水生成，保证离线可用；后续数据量大时可改为服务端导出端点。
-- 请求失败时返回标准错误体；报表接口与流水接口相互独立，CSV 导出失败不影响报表预览。
+- `reportNo` 由服务端生成并长期稳定；`verified` / `text` / `checkedAt` 由服务端真实校验结果决定，未校验时 `verified = false`、`text` 为本地汇总文案。
+- `distanceKm` 由服务端按月内里程表读数极差计算；读数不足时用记录级 `distanceKm` 求和，并用 `distanceSource` 标明来源；仍无法计算时为 0、`costPerKmCents = null`、能耗百公里字段为 `null`。
+- `categories` 由服务端按 6 组归并，`percent` 为整数且在有正向总额时合计 100（最大余数法）；客户端仅做兜底校验。
+- `daily` 覆盖当月 1 日至今天（当前月）或月末（历史月），包含无记录日（金额 0）；当前月不返回未来日期。
+- `recordCount` 包含退款记录；总额按净额计算（退款为负）。报表文案为「共 N 笔收支」。
+- 流水接口新增 `time_asc` 排序、`vehicleName` / `vehiclePlate` / `distanceKm` / `updatedAt` 字段，供 CSV 明细与里程兜底使用；`limit` 最大 200，游标分页不重复、不丢数据。
+- 报表与流水接口独立；CSV 拉取失败不影响报表预览。请求失败返回 `{ code, message, traceId }` 标准错误体。
+- 支持 `ETag` / `If-None-Match` 与 `Cache-Control: private, max-age=60`，客户端按 `dataUpdatedAt` 判断数据新鲜度。
 
 ---
 
@@ -858,5 +906,6 @@ GET /api/v1/ledger/records?month=2026-11&vehicleIds=all&limit=100&cursor=
 
 | 版本 | 日期 | 说明 |
 | --- | --- | --- |
+| v0.3 | 2026-11-14 | 后端确认提供报表聚合与流水接口；补充时区、数据更新时间、里程来源、分类百分比、分页与错误契约；流水增加车辆全名、车牌、单笔里程字段 |
 | v0.2 | 2026-11-14 | 定稿 Q1–Q17：品牌统一车小记；中性校验与戳记文案；保养琥珀；图表标题「每日开销走势」；分类统计「共 N 笔收支」；发票开关置灰 |
 | v0.1 | 2026-11-14 | 基于 Stitch「账单导出与月度报表预览页」初稿：顶部栏、范围选择、A4 预览、导出格式与开关、底部操作栏、PDF / CSV 导出与打印分享 |
