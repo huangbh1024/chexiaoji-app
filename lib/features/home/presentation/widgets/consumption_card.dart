@@ -94,76 +94,105 @@ class _ConsumptionContent extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 10),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.baseline,
-            textBaseline: TextBaseline.alphabetic,
-            children: [
-              Text(
-                formatOneDecimal(consumption.primary.value),
-                style: AppTypography.metric.copyWith(color: palette.onSurface),
-              ),
-              const SizedBox(width: 4),
-              Expanded(
-                child: Text(
-                  consumption.primary.unit,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppTypography.bodySm.copyWith(
-                    fontSize: 10,
-                    color: palette.outline,
+          if (!consumption.hasData) ...[
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.baseline,
+              textBaseline: TextBaseline.alphabetic,
+              children: [
+                Text(
+                  '—',
+                  style: AppTypography.metric.copyWith(
+                    color: palette.onSurface,
                   ),
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    '暂无能耗记录',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTypography.bodySm.copyWith(
+                      fontSize: 10,
+                      color: palette.outline,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ] else ...[
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.baseline,
+              textBaseline: TextBaseline.alphabetic,
+              children: [
+                Text(
+                  formatOneDecimal(consumption.primary.value),
+                  style: AppTypography.metric.copyWith(
+                    color: palette.onSurface,
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    consumption.primary.unit,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTypography.bodySm.copyWith(
+                      fontSize: 10,
+                      color: palette.outline,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            if (hasSecondary) ...[
+              Container(
+                margin: const EdgeInsets.only(top: 5),
+                padding: const EdgeInsets.only(top: 5),
+                decoration: BoxDecoration(
+                  border: Border(
+                    top: BorderSide(color: palette.surfaceContainer, width: 1),
+                  ),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.baseline,
+                  textBaseline: TextBaseline.alphabetic,
+                  children: [
+                    Text(
+                      formatOneDecimal(consumption.secondary!.value),
+                      style: AppTypography.metricSub.copyWith(
+                        color: palette.secondary,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        consumption.secondary!.unit,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTypography.bodySm.copyWith(
+                          fontSize: 10,
+                          color: palette.outline,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
-          ),
-          if (hasSecondary) ...[
-            Container(
-              margin: const EdgeInsets.only(top: 5),
-              padding: const EdgeInsets.only(top: 5),
-              decoration: BoxDecoration(
-                border: Border(
-                  top: BorderSide(color: palette.surfaceContainer, width: 1),
+            const SizedBox(height: 8),
+            SizedBox(
+              height: 32,
+              width: double.infinity,
+              child: CustomPaint(
+                painter: SparklinePainter(
+                  primary: consumption.primarySparkline,
+                  secondary: consumption.secondarySparkline,
+                  primaryColor: palette.primary,
+                  secondaryColor: palette.secondary,
                 ),
-              ),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.baseline,
-                textBaseline: TextBaseline.alphabetic,
-                children: [
-                  Text(
-                    formatOneDecimal(consumption.secondary!.value),
-                    style: AppTypography.metricSub.copyWith(
-                      color: palette.secondary,
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  Expanded(
-                    child: Text(
-                      consumption.secondary!.unit,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppTypography.bodySm.copyWith(
-                        fontSize: 10,
-                        color: palette.outline,
-                      ),
-                    ),
-                  ),
-                ],
               ),
             ),
           ],
-          const SizedBox(height: 8),
-          SizedBox(
-            height: 32,
-            width: double.infinity,
-            child: CustomPaint(
-              painter: SparklinePainter(
-                primary: consumption.primarySparkline,
-                secondary: consumption.secondarySparkline,
-                primaryColor: palette.primary,
-                secondaryColor: palette.secondary,
-              ),
-            ),
-          ),
         ],
       ),
     );

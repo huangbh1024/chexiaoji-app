@@ -1,3 +1,4 @@
+import '../domain/vehicle_editor_models.dart';
 import '../domain/vehicle_models.dart';
 
 /// 车库数据仓库。Mock 阶段由 [MockVehicleRepository] 提供内存实现，
@@ -23,6 +24,19 @@ abstract class VehicleRepository {
     String vehicleId, {
     required String plateTail,
   });
+
+  /// 编辑态档案快照；不存在 / 已归档抛对应错误。
+  Future<VehicleEditorSnapshot> fetchVehicleEditor(String vehicleId);
+
+  /// 新增车辆；返回新 id 与是否成为主驾。
+  Future<VehicleEditorResult> createVehicle(VehicleEditorDraft draft);
+
+  /// 更新档案；[version] 用于生产环境的乐观并发校验。
+  Future<VehicleEditorResult> updateVehicle(
+    String vehicleId,
+    VehicleEditorDraft draft, {
+    int? version,
+  });
 }
 
 enum VehicleErrorCode {
@@ -33,6 +47,8 @@ enum VehicleErrorCode {
   plateTailMismatch,
   conflict,
   limitReached,
+  duplicatePlate,
+  invalidField,
   unknown,
 }
 

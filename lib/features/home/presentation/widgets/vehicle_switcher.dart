@@ -9,6 +9,7 @@ import '../../../../app/theme/app_typography.dart';
 import '../../../../core/format/formatters.dart';
 import '../../domain/home_models.dart';
 import '../../domain/providers.dart';
+import '../../../vehicles/presentation/vehicle_editor_routes.dart';
 import '../../../vehicles/presentation/vehicle_management_routes.dart';
 import '../home_style.dart';
 
@@ -107,7 +108,7 @@ class _VehicleSwitcherState extends ConsumerState<VehicleSwitcher> {
                     itemBuilder: (context, index) {
                       if (index == vehicles.length) {
                         return _AddVehicleCard(
-                          onTap: () => _toast(context, '添加车辆页待接入'),
+                          onTap: () => openVehicleEditor(context),
                         );
                       }
                       final vehicle = vehicles[index];
@@ -163,19 +164,6 @@ class _VehicleSwitcherState extends ConsumerState<VehicleSwitcher> {
         ),
       ],
     );
-  }
-
-  void _toast(BuildContext context, String message) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(message),
-          behavior: SnackBarBehavior.floating,
-          margin: const EdgeInsets.fromLTRB(16, 0, 16, 96),
-          duration: const Duration(seconds: 2),
-        ),
-      );
   }
 }
 

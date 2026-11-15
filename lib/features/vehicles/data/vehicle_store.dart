@@ -11,6 +11,12 @@ class VehicleRecord {
     required this.sortOrder,
     this.isArchived = false,
     this.archivedAt,
+    this.nickname,
+    this.officialConsumption,
+    this.electricRangeKm,
+    this.purchaseDate,
+    this.purchasePriceCents,
+    this.nextMaintenanceKm,
     this.batteryHealthPercent,
     this.insuranceExpiry,
     this.inspectionExpiry,
@@ -21,6 +27,25 @@ class VehicleRecord {
   final int sortOrder;
   final bool isArchived;
   final DateTime? archivedAt;
+
+  /// 档案别名；不替换 [Vehicle.name]。
+  final String? nickname;
+
+  /// 官方标称电耗 / 亏电油耗 / 综合油耗 / 标称油耗。
+  /// 单位与展示标签由动力类型决定。
+  final double? officialConsumption;
+
+  /// 纯电续航（PHEV），km。
+  final int? electricRangeKm;
+
+  /// 首次上牌 / 购车日期，只取 y/m/d。
+  final DateTime? purchaseDate;
+
+  /// 购车落地价，整数分；26.8 万元 = 26800000。
+  final int? purchasePriceCents;
+
+  /// 下次保养的绝对表显里程。
+  final int? nextMaintenanceKm;
 
   /// 电池健康（SOH），0–100；缺失为 null。
   final int? batteryHealthPercent;
@@ -34,20 +59,30 @@ class VehicleRecord {
   String get id => vehicle.id;
 
   VehicleRecord copyWith({
+    Vehicle? vehicle,
+    String? specLabel,
     bool? isArchived,
     DateTime? archivedAt,
     bool clearArchivedAt = false,
+    String? nickname,
+    bool clearNickname = false,
     int? sortOrder,
     int? batteryHealthPercent,
     DateTime? insuranceExpiry,
     DateTime? inspectionExpiry,
   }) {
     return VehicleRecord(
-      vehicle: vehicle,
-      specLabel: specLabel,
+      vehicle: vehicle ?? this.vehicle,
+      specLabel: specLabel ?? this.specLabel,
       sortOrder: sortOrder ?? this.sortOrder,
       isArchived: isArchived ?? this.isArchived,
       archivedAt: clearArchivedAt ? null : (archivedAt ?? this.archivedAt),
+      nickname: clearNickname ? null : (nickname ?? this.nickname),
+      officialConsumption: officialConsumption,
+      electricRangeKm: electricRangeKm,
+      purchaseDate: purchaseDate,
+      purchasePriceCents: purchasePriceCents,
+      nextMaintenanceKm: nextMaintenanceKm,
       batteryHealthPercent: batteryHealthPercent ?? this.batteryHealthPercent,
       insuranceExpiry: insuranceExpiry ?? this.insuranceExpiry,
       inspectionExpiry: inspectionExpiry ?? this.inspectionExpiry,
@@ -55,7 +90,14 @@ class VehicleRecord {
   }
 }
 
-enum VehicleStoreError { notFound, archived, notArchived, isPrimary }
+enum VehicleStoreError {
+  notFound,
+  archived,
+  notArchived,
+  isPrimary,
+  duplicatePlate,
+  limitReached,
+}
 
 class VehicleStoreException implements Exception {
   const VehicleStoreException(this.error);
@@ -74,6 +116,8 @@ class VehicleStore {
     : _records = [...records] {
     _primaryVehicleId = primaryVehicleId;
   }
+
+  static const maxActiveVehicles = 10;
 
   final List<VehicleRecord> _records;
   String? _primaryVehicleId;
@@ -121,6 +165,85 @@ class VehicleStore {
       }
     }
     return null;
+  }
+
+  /// 车牌冲突检查；包含归档车辆。
+  VehicleRecord? byPlate(String plate) {
+    final normalized = _normalizePlate(plate);
+    for (final record in _records) {
+      if (_normalizePlate(record.vehicle.plate) == normalized) {
+        return record;
+      }
+    }
+    return null;
+  }
+
+  /// 新增在库车辆；[sortOrder] 由 store 分配。
+  VehicleRecord add(VehicleRecord record, {bool makePrimary = false}) {
+    if (record.isArchived) {
+      throw const VehicleStoreException(VehicleStoreError.archived);
+    }
+    if (active.length >= maxActiveVehicles) {
+      throw const VehicleStoreException(VehicleStoreError.limitReached);
+    }
+    if (byPlate(record.vehicle.plate) != null) {
+      throw const VehicleStoreException(VehicleStoreError.duplicatePlate);
+    }
+    final created = VehicleRecord(
+      vehicle: record.vehicle,
+      specLabel: record.specLabel,
+      sortOrder: nextSortOrder,
+      nickname: record.nickname,
+      officialConsumption: record.officialConsumption,
+      electricRangeKm: record.electricRangeKm,
+      purchaseDate: record.purchaseDate,
+      purchasePriceCents: record.purchasePriceCents,
+      nextMaintenanceKm: record.nextMaintenanceKm,
+      insuranceExpiry: record.insuranceExpiry,
+      inspectionExpiry: record.inspectionExpiry,
+    );
+    _records.add(created);
+    if (makePrimary || _primaryVehicleId == null) {
+      _primaryVehicleId = created.id;
+    }
+    return created;
+  }
+
+  /// 更新在库车辆档案；保留排序、归档状态、SOH 与年检。
+  VehicleRecord update(
+    String id,
+    VehicleRecord updated, {
+    bool makePrimary = false,
+  }) {
+    final current = require(id);
+    if (current.isArchived) {
+      throw const VehicleStoreException(VehicleStoreError.archived);
+    }
+    final owner = byPlate(updated.vehicle.plate);
+    if (owner != null && owner.id != id) {
+      throw const VehicleStoreException(VehicleStoreError.duplicatePlate);
+    }
+    final next = VehicleRecord(
+      vehicle: updated.vehicle,
+      specLabel: updated.specLabel,
+      sortOrder: current.sortOrder,
+      isArchived: current.isArchived,
+      archivedAt: current.archivedAt,
+      nickname: updated.nickname,
+      officialConsumption: updated.officialConsumption,
+      electricRangeKm: updated.electricRangeKm,
+      purchaseDate: updated.purchaseDate,
+      purchasePriceCents: updated.purchasePriceCents,
+      nextMaintenanceKm: updated.nextMaintenanceKm,
+      batteryHealthPercent: current.batteryHealthPercent,
+      insuranceExpiry: updated.insuranceExpiry,
+      inspectionExpiry: current.inspectionExpiry,
+    );
+    _replace(next);
+    if (makePrimary) {
+      _primaryVehicleId = id;
+    }
+    return next;
   }
 
   int _compare(VehicleRecord a, VehicleRecord b) {
@@ -208,4 +331,7 @@ class VehicleStore {
     }
     _records[index] = record;
   }
+
+  String _normalizePlate(String plate) =>
+      plate.toUpperCase().replaceAll(RegExp(r'[\s·•\-]'), '');
 }

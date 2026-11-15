@@ -18,6 +18,7 @@ import '../domain/providers.dart';
 import '../domain/vehicle_models.dart';
 import '../domain/vehicle_presenter.dart';
 import 'archived_vehicles_routes.dart';
+import 'vehicle_editor_routes.dart';
 import 'widgets/add_vehicle_card.dart';
 import 'widgets/archived_entry_card.dart';
 import 'widgets/fleet_summary_card.dart';
@@ -28,11 +29,27 @@ import 'widgets/vehicle_member_card.dart';
 import 'widgets/vehicle_more_sheet.dart';
 
 /// 车辆管理：车库总览、逐车卡片与主驾 / 归档 / 删除操作。
-class VehicleManagementPage extends ConsumerWidget {
+class VehicleManagementPage extends ConsumerStatefulWidget {
   const VehicleManagementPage({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<VehicleManagementPage> createState() =>
+      _VehicleManagementPageState();
+}
+
+class _VehicleManagementPageState extends ConsumerState<VehicleManagementPage> {
+  final _scrollController = ScrollController();
+  final _cardKeys = <String, GlobalKey>{};
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ref = this.ref;
     final palette = context.palette;
     final tokens = context.tokens;
     final garage = ref.watch(garageProvider);
@@ -51,6 +68,7 @@ class VehicleManagementPage extends ConsumerWidget {
               color: palette.primary,
               onRefresh: () => _refresh(ref),
               child: CustomScrollView(
+                controller: _scrollController,
                 physics: const AlwaysScrollableScrollPhysics(),
                 slivers: [
                   SliverPersistentHeader(
@@ -60,7 +78,7 @@ class VehicleManagementPage extends ConsumerWidget {
                       child: VehicleManagementHeader(
                         summary: summary,
                         canPop: !command.isBusy,
-                        onAdd: () => _addPlaceholder(context),
+                        onAdd: () => _openEditor(),
                       ),
                     ),
                   ),
@@ -101,7 +119,7 @@ class VehicleManagementPage extends ConsumerWidget {
             onRetry: () => ref.invalidate(garageProvider),
           ),
           SizedBox(height: tokens.spaceLg),
-          AddVehicleCard(onTap: () => _addPlaceholder(context)),
+          AddVehicleCard(onTap: _openEditor),
         ];
       }
       return const [VehicleManagementSkeleton()];
@@ -142,24 +160,27 @@ class VehicleManagementPage extends ConsumerWidget {
           icon: Icons.directions_car_rounded,
           title: '车库还是空的',
           actionLabel: '添加第一辆爱车',
-          onAction: () => _addPlaceholder(context),
+          onAction: _openEditor,
         )
       else
         for (var index = 0; index < vehicles.length; index++) ...[
           if (index > 0) const SizedBox(height: 12),
-          VehicleMemberCard(
-            key: ValueKey<String>(vehicles[index].id),
-            vehicle: vehicles[index],
-            isBusy: command.isBusy,
-            onRecord: () => _record(context, ref, vehicles[index]),
-            onStats: () => _openStats(context, ref, vehicles[index]),
-            onSetPrimary: () => _setPrimary(context, ref, vehicles[index]),
-            onEdit: () => _editPlaceholder(context),
-            onMore: () => _openMore(context, ref, vehicles[index], overview),
+          KeyedSubtree(
+            key: _cardKeys.putIfAbsent(vehicles[index].id, GlobalKey.new),
+            child: VehicleMemberCard(
+              key: ValueKey<String>(vehicles[index].id),
+              vehicle: vehicles[index],
+              isBusy: command.isBusy,
+              onRecord: () => _record(context, ref, vehicles[index]),
+              onStats: () => _openStats(context, ref, vehicles[index]),
+              onSetPrimary: () => _setPrimary(context, ref, vehicles[index]),
+              onEdit: () => _openEditor(vehicleId: vehicles[index].id),
+              onMore: () => _openMore(context, ref, vehicles[index], overview),
+            ),
           ),
         ],
       const SizedBox(height: 12),
-      AddVehicleCard(onTap: () => _addPlaceholder(context)),
+      AddVehicleCard(onTap: _openEditor),
       if (overview.archivedVehicles.isNotEmpty) ...[
         const SizedBox(height: 12),
         ArchivedEntryCard(
@@ -181,12 +202,30 @@ class VehicleManagementPage extends ConsumerWidget {
     }
   }
 
-  void _addPlaceholder(BuildContext context) {
-    showAppToast(context, '添加爱车页待接入');
-  }
-
-  void _editPlaceholder(BuildContext context) {
-    showAppToast(context, '车辆档案编辑待接入');
+  Future<void> _openEditor({String? vehicleId}) async {
+    final result = await openVehicleEditor(context, vehicleId: vehicleId);
+    if (!mounted || result == null) {
+      return;
+    }
+    ref.invalidate(garageProvider);
+    try {
+      await ref.read(garageProvider.future);
+    } catch (_) {
+      return;
+    }
+    if (!mounted || result.archived) {
+      return;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final target = _cardKeys[result.vehicleId]?.currentContext;
+      if (target != null) {
+        Scrollable.ensureVisible(
+          target,
+          duration: const Duration(milliseconds: 250),
+          alignment: 0.2,
+        );
+      }
+    });
   }
 
   Future<void> _record(
@@ -228,7 +267,7 @@ class VehicleManagementPage extends ConsumerWidget {
       case VehicleMoreAction.setPrimary:
         await _setPrimary(context, ref, vehicle);
       case VehicleMoreAction.edit:
-        _editPlaceholder(context);
+        await _openEditor(vehicleId: vehicle.id);
       case VehicleMoreAction.archive:
         await _archive(context, ref, vehicle, garage);
       case VehicleMoreAction.delete:
@@ -276,7 +315,7 @@ class VehicleManagementPage extends ConsumerWidget {
 
     final confirmed = await showArchiveVehicleSheet(
       context,
-      vehicle,
+      vehicle.vehicle,
       body: buffer.toString(),
       confirmLabel: sole ? '确认归档并清空车库' : '确认归档',
       onConfirm: () => _runCommand(

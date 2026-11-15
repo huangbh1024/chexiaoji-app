@@ -11,6 +11,7 @@ abstract final class VehiclePresenter {
     final isElectric =
         vehicle.powertrain == PowertrainType.ev ||
         vehicle.powertrain == PowertrainType.phev;
+    final energyLabel = isElectric ? '动力电耗' : '综合油耗';
 
     return [
       VehicleMetric(
@@ -18,12 +19,15 @@ abstract final class VehiclePresenter {
         value: formatKmValue(vehicle.vehicle.odometerKm),
         unit: 'km',
       ),
-      VehicleMetric(
-        label: isElectric ? '动力电耗' : '综合油耗',
-        value: formatOneDecimal(consumption.primary.value),
-        unit: consumption.primary.unit,
-        tone: VehicleMetricTone.accent,
-      ),
+      if (!consumption.hasData)
+        _missing(energyLabel)
+      else
+        VehicleMetric(
+          label: energyLabel,
+          value: formatOneDecimal(consumption.primary.value),
+          unit: consumption.primary.unit,
+          tone: VehicleMetricTone.accent,
+        ),
       _thirdMetric(vehicle),
     ];
   }
@@ -166,7 +170,9 @@ abstract final class VehiclePresenter {
 
   static String specLine(ManagedVehicle vehicle) {
     final spec = vehicle.specLabel.trim();
-    return spec.isEmpty ? '车辆档案待完善' : spec;
+    final nickname = vehicle.nickname?.trim() ?? '';
+    final base = spec.isEmpty ? '车辆档案待完善' : spec;
+    return nickname.isEmpty ? base : '$nickname · $base';
   }
 
   static DeleteBlockReason? deleteBlockReason(

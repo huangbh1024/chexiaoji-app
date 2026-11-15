@@ -14,6 +14,7 @@ class ManagedVehicle {
     required this.recordCount,
     required this.consumption,
     required this.maintenance,
+    this.nickname,
     this.batteryHealthPercent,
     this.insuranceExpiry,
     this.inspectionExpiry,
@@ -32,6 +33,9 @@ class ManagedVehicle {
 
   final Consumption consumption;
   final Maintenance maintenance;
+
+  /// 档案别名；不替换 [vehicle.name]。
+  final String? nickname;
 
   final int? batteryHealthPercent;
   final DateTime? insuranceExpiry;

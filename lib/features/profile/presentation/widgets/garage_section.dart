@@ -6,12 +6,12 @@ import '../../../../app/theme/app_tokens.dart';
 import '../../../../app/theme/app_typography.dart';
 import '../../../../core/domain/vehicle.dart';
 import '../../../../core/presentation/category_style.dart';
-import '../../../../core/presentation/toast.dart';
 import '../../../../core/widgets/app_card.dart';
 import '../../../../core/widgets/empty_state.dart';
 import '../../../../core/widgets/section_error.dart';
 import '../../../../core/widgets/skeleton_box.dart';
 import '../../../home/domain/providers.dart';
+import '../../../vehicles/presentation/vehicle_editor_routes.dart';
 import '../../../vehicles/presentation/vehicle_management_routes.dart';
 import '../../domain/garage_aggregation.dart';
 import '../../domain/profile_presenter.dart';
@@ -140,7 +140,7 @@ class GarageSection extends ConsumerWidget {
                   icon: Icons.garage_rounded,
                   title: '还没有添加车辆',
                   actionLabel: '添加车辆',
-                  onAction: () => showAppToast(context, '添加车辆页待接入'),
+                  onAction: () => openVehicleEditor(context),
                 );
               }
               if (garageAsync.hasError && !garageAsync.hasValue) {
@@ -166,7 +166,7 @@ class GarageSection extends ConsumerWidget {
                     key: ValueKey<String>(effectiveId ?? 'all'),
                     view: buildGarageCardView(garage.snapshot),
                     snapshot: garage.snapshot,
-                    onAdd: () => showAppToast(context, '添加车辆页待接入'),
+                    onAdd: () => openVehicleEditor(context),
                   ),
                 ),
               );

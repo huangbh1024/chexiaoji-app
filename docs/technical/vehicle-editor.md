@@ -7,10 +7,10 @@
 | 设计稿 | [Stitch · 车辆新增与编辑档案页](https://stitch.google.com/projects/9615374848161425677?node-id=ab4c2e04ed0d44e7bf5941c9ba700e86) |
 | 客户端 | Flutter 3.50.0 stable / Dart 3.14 |
 | 平台 | Android（arm64 优先）、iOS |
-| 文档版本 | v0.1（方案，待实施） |
-| 状态 | 设计完成，尚未实现；当前入口为 Toast 占位 |
+| 文档版本 | v0.2（P1 已实现） |
+| 状态 | P1 已实现（Mock）；接口未确认 |
 
-> 本文档基于**仓库当前已有实现**编写：车辆管理、已归档车辆、首页、账单、统计、我的页、记账页、单笔详情、月度报表均已落地；依赖为 `material_ui`、`flutter_riverpod 3.5`、`fl_chart`、`intl`、`pdf`、`printing`、`share_plus`、`path_provider`、`image_picker`。
+> 本文档基于**仓库当前已有实现**编写：车辆管理、已归档车辆、车辆档案编辑器、首页、账单、统计、我的页、记账页、单笔详情、月度报表均已落地；依赖为 `material_ui`、`flutter_riverpod 3.5`、`fl_chart`、`intl`、`pdf`、`printing`、`share_plus`、`path_provider`、`image_picker`。
 > 本页是车辆**档案字段的唯一写入口**；默认主驾、归档、删除仍复用车辆管理的命令与确认弹层，避免出现两套规则。
 > 技术难点不在表单本身，而在三处跨页影响：
 > 1. **新建车辆没有流水 / 能耗 / 保养数据**，首页、统计、我的页、报表不能崩溃或伪造数值；
@@ -208,7 +208,7 @@ abstract final class VehicleEditorStyle {
 │        └─ edit: VehicleRepository.fetchVehicleEditor(id)      │
 │               │                                             │
 │               ├─ VehicleStore.byId(id)                       │
-│               ├─ LedgerRepository.latestOdometer(id)         │
+│               ├─ LedgerRepository.latestOdometerForVehicle(id)│
 │               └─ 归档 / 主驾 / 上限约束                       │
 │                                                              │
 │  表单编辑 ──► VehicleEditorDraft（不可变）                     │
@@ -2402,8 +2402,57 @@ Widget 测试通过 `ProviderScope` override `vehicleStoreProvider` / `vehicleRe
 
 ---
 
-## 16. 变更记录
+## 16. 实施记录（v0.2）
+
+### 16.1 已落地文件
+
+| 层 | 文件 |
+| --- | --- |
+| 模型 | `lib/features/vehicles/domain/vehicle_editor_models.dart`、`lib/features/vehicles/data/vehicle_store.dart`（`VehicleRecord` 新字段 / `add` / `update` / `byPlate`） |
+| 推导 | `lib/features/vehicles/domain/vehicle_editor_presenter.dart`、`lib/features/vehicles/data/vehicle_editor_catalog.dart` |
+| 仓库 | `vehicle_repository.dart`、`mock_vehicle_repository.dart`（编辑器快照 / 创建 / 更新）；`ledger_repository.dart` / `mock_ledger_repository.dart`（最近里程与保养里程） |
+| 状态 | `lib/features/vehicles/domain/vehicle_editor_providers.dart`、`.../domain/providers.dart`（`VehicleScopeInvalidator`） |
+| 页面 | `vehicle_editor_page.dart`、`vehicle_editor_routes.dart`、`vehicle_editor_style.dart` |
+| 组件 | `widgets/vehicle_editor_header.dart`、`powertrain_selector.dart`、`vehicle_editor_field.dart`、`vehicle_plate_input.dart`、`province_picker_sheet.dart`、`vehicle_editor_bottom_bar.dart`、`discard_changes_sheet.dart`、`vehicle_editor_skeleton.dart` |
+| 入口 | `vehicle_management_page.dart`、`widgets/vehicle_switcher.dart`、`widgets/garage_section.dart` |
+| 空数据 | `home_models.dart`（`Consumption.hasData` / `Maintenance.hasProgress`）、`mock_home_repository.dart`、`consumption_card.dart`、`maintenance_card.dart`、`vehicle_presenter.dart` |
+| 归档弹层 | `vehicle_confirm_sheets.dart` 的 `showArchiveVehicleSheet` 改为接收 `Vehicle` |
+| 测试 | `vehicle_editor_presenter_test.dart`、`vehicle_editor_page_test.dart`、`home_new_vehicle_test.dart`，并扩展 store / mock repo 测试 |
+
+### 16.2 与方案的差异
+
+| # | 方案 | 实现 | 原因 |
+| --- | --- | --- | --- |
+| 1 | `LedgerRepository.latestOdometer(vehicleId)` | 接口命名为 `latestOdometerForVehicle` | 避免与 Mock 现有同步 `latestOdometer` 方法重名 |
+| 2 | 昵称以独立胶囊展示 | 追加到 `VehiclePresenter.specLine`，显示为「昵称 · 配置」 | 不新增车辆卡布局分支，避免 1.3 倍字号溢出 |
+| 3 | 底部操作栏放 `bottomNavigationBar` | 页面 Column 内 + `resizeToAvoidBottomInset: false` + `viewInsets` padding | 键盘弹出时操作栏稳定贴在键盘上方 |
+| 4 | 表单每次变更同步全部控制器 | 只在首次就绪与动力类型切换时同步 | 避免用户输入小数点时被格式化回写导致光标跳动 |
+| 5 | 车辆管理页滚动使用 `GlobalKey` 直接包车辆卡 | 用 `KeyedSubtree` 包 `GlobalKey`，内层保留 `ValueKey` | 兼容既有测试与列表定位 |
+| 6 | 设计稿默认油品含柴油 | 只提供 92 / 95 / 98 | 记账页 `FuelDetail.fuelGrade` 仅支持汽油标号 |
+| 7 | `VehicleEditorSnapshot` 版本冲突 | Mock `version = 1`，不模拟并发冲突 | 生产由服务端返回版本；Mock 保持简单 |
+| 8 | OCR / 车型库 | OCR 胶囊 Toast 占位，搜索图标不渲染 | 未实现能力不展示假入口 |
+| 9 | 身份 / 规格 / 偏好拆成三个独立 card 文件 | 三个卡片内联在 `vehicle_editor_page.dart`，公共输入组件抽到 `vehicle_editor_field.dart` | 减少跨文件传参与控制器同步复杂度 |
+
+### 16.3 验证
+
+- `flutter analyze`：No issues found。
+- `flutter test`：307 个测试全部通过；本轮新增 33 个（presenter 12、页面 7、store 6、仓库 4、空看板 4）。
+- Widget 测试覆盖：新增态渲染、必填校验、动力切换、省份弹层、保存写回、编辑回显、脏返回确认、编辑页归档。
+- 单元测试覆盖：车牌规范化与校验、动力字段范围、里程回退、重复车牌、购车信息、映射与主驾、空看板与保养覆盖。
+- 未做真机手工验收；合并后由 CI 构建 APK。
+
+### 16.4 后续
+
+- 真机验收（Android arm64）与深色模式截图。
+- HTTP `VehicleRepository` 实现与 400 / 404 / 409 映射。
+- OCR 证件识别、车型库检索、车辆照片 / VIN / 保养周期（P1）。
+- 归档车辆恢复后的 10 辆上限规则（需求 Q12）。
+
+---
+
+## 17. 变更记录
 
 | 版本 | 日期 | 说明 |
 | --- | --- | --- |
 | v0.1 | 2026-11-15 | 首版：定义编辑器数据模型、仓库 / store 扩展、表单状态与校验、车牌规则、保存 / 归档 / 未保存流程、新车辆空看板与保养覆盖、测试与实施拆分 |
+| v0.2 | 2026-11-15 | P1 实施：落地页面、动态字段、车牌弹层、保存 / 归档 / 脏保护、空看板与 33 个新测试；补充实现差异与验证结果 |
