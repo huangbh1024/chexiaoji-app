@@ -3,11 +3,11 @@
 | 项目 | 内容 |
 | --- | --- |
 | 关联需求 | [车辆管理需求文档 v0.1](../requirements/vehicle-management.md) |
-| 关联方案 | [我的页技术方案](profile.md)、[首页技术方案](home-dashboard.md)、[记账页技术方案](expense-entry.md) |
+| 关联方案 | [我的页技术方案](profile.md)、[首页技术方案](home-dashboard.md)、[记账页技术方案](expense-entry.md)、[已归档车辆技术方案](archived-vehicles.md) |
 | 设计稿（对应页面） | [Stitch · 车辆管理与爱车车库页（支持归档与删除）](https://stitch.google.com/projects/9615374848161425677?node-id=20559c50d1d3475ea35ffb9e14cd8099) |
 | 客户端 | Flutter 3.50.0 stable / Dart 3.14 |
 | 平台 | Android（arm64 优先）、iOS |
-| 文档版本 | v0.2（P0 已实现） |
+| 文档版本 | v0.3（归档页拆分） |
 | 状态 | P0 已实现（Mock）；接口未确认 |
 
 > 本文档基于**仓库当前已有实现**（首页、账单、统计、我的页、记账页、单笔详情、月度报表已落地；依赖为 `material_ui`、`flutter_riverpod 3.5`、`fl_chart`、`intl`、`pdf`、`printing`、`share_plus`、`path_provider`）编写。新增目录与文件均为拟实施内容，按 `feat/vehicle-management-*` 分支推进。
@@ -115,7 +115,8 @@ lib/features/vehicles/
         ├── set_primary_sheet.dart
         ├── archive_vehicle_sheet.dart
         ├── delete_vehicle_sheet.dart
-        ├── archived_vehicles_sheet.dart
+        ├── archived_vehicles_page.dart       # v0.3：归档独立页
+        ├── archived_vehicles_routes.dart
         ├── vehicle_empty_state.dart
         └── vehicle_management_skeleton.dart
 ```
@@ -1131,8 +1132,9 @@ Future<T?> showVehicleSheet<T>(
 ### 8.7 已归档入口与恢复
 
 - `ArchivedEntryCard`：仅 `archivedVehicles.isNotEmpty` 时插入；`AppCard` 样式（16 圆角、16 内边距）+ 图标 + 文案 + 箭头。
-- `ArchivedVehiclesSheet`：`showVehicleSheet<List<String>>`；每项显示车名、车牌、归档日期、恢复按钮；恢复调用 `vehicleCommandProvider.restore(id)`，成功后关闭并 Toast。
-- 恢复后如果车库为空 → 该车成为主驾；页面刷新后列表只有一张默认主驾卡。
+- 点击改为 `openArchivedVehicles(context)`，推入独立页面「已归档车辆」；页面内的恢复、查看历史报表与彻底删除见[已归档车辆技术方案](archived-vehicles.md)。
+- 原 `ArchivedVehiclesSheet`（底部恢复弹层）在 v0.3 移除，避免两套归档写入口并存。
+- 从归档页返回后，本页依赖 `garageProvider` 失效刷新入口计数；归档页恢复的车辆出现在车库末尾，车库原本为空时自动成为默认主驾。
 
 ### 8.8 加载 / 空 / 错误
 
@@ -1411,7 +1413,7 @@ await tester.pumpWidget(
 | 状态 / 数据 | `lib/features/vehicles/data/vehicle_store.dart`、`vehicle_seed_data.dart`、`vehicle_store_provider.dart`、`vehicle_repository.dart`、`mock_vehicle_repository.dart` |
 | 领域 | `lib/features/vehicles/domain/vehicle_models.dart`、`vehicle_presenter.dart`、`providers.dart` |
 | 页面 | `lib/features/vehicles/presentation/vehicle_management_page.dart`、`vehicle_management_routes.dart`、`vehicle_management_style.dart` |
-| 组件 | `widgets/vehicle_management_header.dart`、`fleet_summary_card.dart`、`vehicle_member_card.dart`、`add_vehicle_card.dart`、`archived_entry_card.dart`、`vehicle_management_skeleton.dart`、`vehicle_sheet_shell.dart`、`vehicle_more_sheet.dart`、`vehicle_confirm_sheets.dart`、`archived_vehicles_sheet.dart` |
+| 组件 | `widgets/vehicle_management_header.dart`、`fleet_summary_card.dart`、`vehicle_member_card.dart`、`add_vehicle_card.dart`、`archived_entry_card.dart`、`vehicle_management_skeleton.dart`、`vehicle_sheet_shell.dart`、`vehicle_more_sheet.dart`、`vehicle_confirm_sheets.dart`、`archived_vehicles_sheet.dart`（v0.3 移除） |
 | 测试 | `test/vehicles/vehicle_store_test.dart`、`vehicle_presenter_test.dart`、`mock_vehicle_repository_test.dart`、`vehicle_management_page_test.dart`、`home_empty_garage_test.dart` |
 
 ### 16.2 前置改造
@@ -1449,6 +1451,7 @@ await tester.pumpWidget(
 - 车联网授权与自动里程同步。
 - HTTP `VehicleRepository` 实现、409 冲突 / 上限处理、离线队列。
 - 已归档车辆迁入设置页。
+- 归档车辆的独立页面、恢复确认与彻底删除：见[已归档车辆技术方案](archived-vehicles.md)。
 
 ---
 
@@ -1458,3 +1461,4 @@ await tester.pumpWidget(
 | --- | --- | --- |
 | v0.1 | 2026-11-15 | 首版：现状与复用、store / 仓库 / provider 设计、失效矩阵、三种删除形态、可空选中车辆改造、实施拆分与测试方案 |
 | v0.2 | 2026-11-15 | P0 实施：补充落地文件、前置改造、方案差异、测试与后续事项 |
+| v0.3 | 2026-11-15 | 归档车辆拆分独立页：入口改为路由，移除 `ArchivedVehiclesSheet`，恢复 / 历史报表 / 彻底删除迁入[已归档车辆技术方案](archived-vehicles.md) |
