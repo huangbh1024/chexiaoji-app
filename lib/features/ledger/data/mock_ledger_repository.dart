@@ -167,6 +167,19 @@ class MockLedgerRepository implements LedgerRepository {
     return stats;
   }
 
+  @override
+  Future<int> countRecords({String? vehicleId}) async {
+    final now = DateTime.now();
+    final from = DateTime(now.year, now.month - 23);
+    final records = recordsBetween(from, now);
+    if (vehicleId == null) {
+      return records.length;
+    }
+    return records
+        .where((record) => record.vehicleId == vehicleId)
+        .length;
+  }
+
   /// 按 id 查找记录：先查索引，再回扫最近 24 个月。
   ///
   /// 已删除的记录返回 null。

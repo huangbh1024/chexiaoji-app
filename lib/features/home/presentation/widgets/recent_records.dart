@@ -20,7 +20,10 @@ class RecentRecords extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final palette = context.palette;
-    final vehicleId = ref.watch(selectedVehicleIdProvider);
+    final vehicleId = ref.watch(effectiveVehicleIdProvider);
+    if (vehicleId == null) {
+      return const SizedBox.shrink();
+    }
     final records = ref.watch(recordsProvider(vehicleId));
 
     return Column(

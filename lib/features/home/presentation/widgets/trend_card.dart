@@ -18,7 +18,10 @@ class TrendCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final palette = context.palette;
-    final vehicleId = ref.watch(selectedVehicleIdProvider);
+    final vehicleId = ref.watch(effectiveVehicleIdProvider);
+    if (vehicleId == null) {
+      return const SizedBox.shrink();
+    }
     final range = ref.watch(trendRangeProvider);
     final trend = ref.watch(
       trendProvider((vehicleId: vehicleId, range: range)),

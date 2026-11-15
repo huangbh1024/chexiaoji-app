@@ -25,7 +25,7 @@ class StatsFilterNotifier extends Notifier<StatsFilter> {
   @override
   StatsFilter build() => StatsFilter(
     // 只读取一次初始值，不跟踪首页选中车辆。
-    vehicleId: ref.read(selectedVehicleIdProvider),
+    vehicleId: ref.read(effectiveVehicleIdProvider),
     anchor: DateTime.now(),
   );
 
@@ -59,7 +59,7 @@ class StatsFilterNotifier extends Notifier<StatsFilter> {
 
   void reset() {
     state = StatsFilter(
-      vehicleId: ref.read(selectedVehicleIdProvider),
+      vehicleId: ref.read(effectiveVehicleIdProvider),
       anchor: DateTime.now(),
     );
   }

@@ -14,6 +14,7 @@ import '../../../core/widgets/section_error.dart';
 import '../../../core/widgets/skeleton_box.dart';
 import '../../expense_entry/domain/expense_entry_models.dart';
 import '../../expense_entry/presentation/expense_entry_routes.dart';
+import '../../vehicles/presentation/vehicle_management_routes.dart';
 import '../../ledger/domain/ledger_models.dart';
 import '../data/expense_detail_repository.dart';
 import '../domain/expense_detail_models.dart';
@@ -135,7 +136,7 @@ class ExpenseDetailPage extends ConsumerWidget {
                                 DetailVehicleCard(
                                   detail: detail,
                                   onTap: detail.vehicleBound
-                                      ? () => _toast(context, '车辆管理待接入')
+                                      ? () => openVehicleManagement(context)
                                       : null,
                                 ),
                                 const SizedBox(height: 12),

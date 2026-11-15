@@ -9,6 +9,7 @@ import '../../../../app/theme/app_typography.dart';
 import '../../../../core/format/formatters.dart';
 import '../../domain/home_models.dart';
 import '../../domain/providers.dart';
+import '../../../vehicles/presentation/vehicle_management_routes.dart';
 import '../home_style.dart';
 
 class VehicleSwitcher extends ConsumerStatefulWidget {
@@ -52,7 +53,7 @@ class _VehicleSwitcherState extends ConsumerState<VehicleSwitcher> {
     final palette = context.palette;
     final tokens = context.tokens;
     final vehiclesAsync = ref.watch(vehiclesProvider);
-    final selectedId = ref.watch(selectedVehicleIdProvider);
+    final selectedId = ref.watch(effectiveVehicleIdProvider);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -86,7 +87,7 @@ class _VehicleSwitcherState extends ConsumerState<VehicleSwitcher> {
                 ),
               ),
             ),
-            _ManageButton(onTap: () => _toast(context, '车辆管理页待接入')),
+            _ManageButton(onTap: () => openVehicleManagement(context)),
           ],
         ),
         SizedBox(height: tokens.spaceSm),

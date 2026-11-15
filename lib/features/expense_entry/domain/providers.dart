@@ -167,7 +167,7 @@ class ExpenseEntryController extends Notifier<ExpenseEntryState> {
         return;
       }
       final initialId =
-          args.initialVehicleId ?? ref.read(selectedVehicleIdProvider);
+          args.initialVehicleId ?? ref.read(effectiveVehicleIdProvider);
       final vehicle = _findVehicle(vehicles, initialId) ?? vehicles.first;
       final defaultsResult = await _loadDefaults(vehicle);
       if (!ref.mounted) {
