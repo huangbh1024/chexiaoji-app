@@ -198,23 +198,30 @@ class _MileageValue extends StatelessWidget {
     return FittedBox(
       fit: BoxFit.scaleDown,
       alignment: Alignment.centerLeft,
-      child: Text.rich(
-        TextSpan(
-          children: [
-            TextSpan(text: formatCount(km)),
-            TextSpan(
-              text: ' km',
-              style: AppTypography.labelSm.copyWith(
-                color: Colors.white.withValues(alpha: 0.80),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Text(
+            formatCount(km),
+            style: AppTypography.displayHero.copyWith(
+              fontSize: 28,
+              height: 32 / 28,
+              color: Colors.white,
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.only(left: 6, bottom: 3),
+            child: Text(
+              'km',
+              style: AppTypography.labelMd.copyWith(
+                fontSize: 12,
+                height: 16 / 12,
+                color: Colors.white.withValues(alpha: 0.85),
               ),
             ),
-          ],
-        ),
-        style: AppTypography.displayHero.copyWith(
-          fontSize: 28,
-          height: 32 / 28,
-          color: Colors.white,
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -232,23 +239,30 @@ class _MoneyValue extends StatelessWidget {
     return FittedBox(
       fit: BoxFit.scaleDown,
       alignment: Alignment.centerLeft,
-      child: Text.rich(
-        TextSpan(
-          children: [
-            TextSpan(
-              text: '¥',
-              style: AppTypography.labelMd.copyWith(
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(bottom: 5),
+            child: Text(
+              '¥',
+              style: AppTypography.headlineSm.copyWith(
+                height: 22 / 16,
                 color: Colors.white.withValues(alpha: 0.90),
               ),
             ),
-            TextSpan(text: number),
-          ],
-        ),
-        style: AppTypography.displayHero.copyWith(
-          fontSize: 28,
-          height: 32 / 28,
-          color: Colors.white,
-        ),
+          ),
+          const SizedBox(width: 5),
+          Text(
+            number,
+            style: AppTypography.displayHero.copyWith(
+              fontSize: 28,
+              height: 32 / 28,
+              color: Colors.white,
+            ),
+          ),
+        ],
       ),
     );
   }
