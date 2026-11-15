@@ -19,11 +19,15 @@ class ReportScopeBar extends ConsumerWidget {
     required this.scope,
     required this.onMonthChanged,
     required this.onVehicleChanged,
+    this.archivedVehicle,
   });
 
   final ReportScope scope;
   final ValueChanged<DateTime> onMonthChanged;
   final ValueChanged<String?> onVehicleChanged;
+
+  /// 归档车辆：不在在库列表时仍展示为可切换 chip。
+  final ReportVehicleBrief? archivedVehicle;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -34,6 +38,7 @@ class ReportScopeBar extends ConsumerWidget {
         const SizedBox(height: 8),
         ReportVehicleChips(
           selectedId: scope.vehicleId,
+          archivedVehicle: archivedVehicle,
           onChanged: onVehicleChanged,
         ),
       ],
@@ -180,10 +185,12 @@ class ReportVehicleChips extends ConsumerWidget {
     super.key,
     required this.selectedId,
     required this.onChanged,
+    this.archivedVehicle,
   });
 
   final String? selectedId;
   final ValueChanged<String?> onChanged;
+  final ReportVehicleBrief? archivedVehicle;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -203,11 +210,13 @@ class ReportVehicleChips extends ConsumerWidget {
         ),
         error: (error, stack) => _VehicleChipList(
           vehicles: const [],
+          archivedVehicle: archivedVehicle,
           selectedId: selectedId,
           onChanged: onChanged,
         ),
         data: (vehicles) => _VehicleChipList(
           vehicles: vehicles,
+          archivedVehicle: archivedVehicle,
           selectedId: selectedId,
           onChanged: onChanged,
         ),
@@ -221,11 +230,13 @@ class _VehicleChipList extends StatelessWidget {
     required this.vehicles,
     required this.selectedId,
     required this.onChanged,
+    this.archivedVehicle,
   });
 
   final List<Vehicle> vehicles;
   final String? selectedId;
   final ValueChanged<String?> onChanged;
+  final ReportVehicleBrief? archivedVehicle;
 
   @override
   Widget build(BuildContext context) {
@@ -253,6 +264,17 @@ class _VehicleChipList extends StatelessWidget {
             selected: selectedId == vehicle.id,
           ),
           onTap: () => onChanged(vehicle.id),
+        ),
+      if (archivedVehicle != null &&
+          !vehicles.any((vehicle) => vehicle.id == archivedVehicle!.id))
+        _VehiclePill(
+          label: '${archivedVehicle!.name}（已归档）',
+          selected: selectedId == archivedVehicle!.id,
+          leading: _VehicleDot(
+            color: archivedVehicle!.powertrain.color,
+            selected: selectedId == archivedVehicle!.id,
+          ),
+          onTap: () => onChanged(archivedVehicle!.id),
         ),
     ];
 

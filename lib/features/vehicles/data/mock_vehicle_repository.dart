@@ -84,6 +84,41 @@ class MockVehicleRepository implements VehicleRepository {
     );
   }
 
+  @override
+  Future<ArchivedGarage> fetchArchivedGarage() async {
+    await Future<void>.delayed(delay);
+    final records = store.archived;
+    final vehicles = await Future.wait([
+      for (final record in records) _archivedSummary(record),
+    ]);
+    return ArchivedGarage(
+      vehicles: List<ArchivedVehicleSummary>.unmodifiable(vehicles),
+      fetchedAt: _now(),
+    );
+  }
+
+  Future<ArchivedVehicleSummary> _archivedSummary(VehicleRecord record) async {
+    final stats = await ledger.fetchVehicleStats(record.id);
+    EnergyValue? averageConsumption;
+    try {
+      final dashboard = await home.fetchDashboard(record.id);
+      averageConsumption = dashboard.consumption.primary;
+    } catch (_) {
+      // 演示数据缺失时保留「未录入」，不伪造能耗。
+    }
+    return ArchivedVehicleSummary(
+      vehicle: record.vehicle,
+      specLabel: record.specLabel,
+      sortOrder: record.sortOrder,
+      archivedAt: record.archivedAt ?? _now(),
+      lifetimeSpendCents: stats.totalSpendCents,
+      recordCount: stats.recordCount,
+      energyRecordCount: stats.energyRecordCount,
+      averageConsumption: averageConsumption,
+      latestRecordAt: stats.latestRecordAt,
+    );
+  }
+
   List<ArchivedVehicle> _archivedView() {
     return [
       for (final record in store.archived)
@@ -191,12 +226,36 @@ class MockVehicleRepository implements VehicleRepository {
     }
   }
 
+  @override
+  Future<void> purgeArchivedVehicle(
+    String vehicleId, {
+    required String plateTail,
+  }) async {
+    await Future<void>.delayed(delay);
+    final record = store.byId(vehicleId);
+    if (record == null) {
+      throw const VehicleOperationException(VehicleErrorCode.notFound);
+    }
+    if (!record.isArchived) {
+      throw const VehicleOperationException(VehicleErrorCode.notArchived);
+    }
+    if (ArchivedVehiclePresenter.plateTailOf(record.vehicle.plate) !=
+        plateTail.trim().toUpperCase()) {
+      throw const VehicleOperationException(VehicleErrorCode.plateTailMismatch);
+    }
+    try {
+      store.purge(vehicleId);
+    } on VehicleStoreException catch (error) {
+      throw _mapStoreError(error);
+    }
+  }
+
   VehicleOperationException _mapStoreError(VehicleStoreException error) {
     return switch (error.error) {
-      VehicleStoreError.notFound ||
-      VehicleStoreError.archived ||
+      VehicleStoreError.notFound || VehicleStoreError.archived =>
+        const VehicleOperationException(VehicleErrorCode.notFound),
       VehicleStoreError.notArchived => const VehicleOperationException(
-        VehicleErrorCode.notFound,
+        VehicleErrorCode.notArchived,
       ),
       VehicleStoreError.isPrimary => const VehicleOperationException(
         VehicleErrorCode.isPrimary,

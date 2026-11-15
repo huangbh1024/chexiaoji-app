@@ -357,6 +357,27 @@ class LedgerLifetimeStats {
   final DateTime? firstRecordAt;
 }
 
+/// 单车全历史统计：归档卡片指标与彻底删除影响清单使用。
+@immutable
+class VehicleLedgerStats {
+  const VehicleLedgerStats({
+    required this.totalSpendCents,
+    required this.recordCount,
+    required this.energyRecordCount,
+    this.firstRecordAt,
+    this.latestRecordAt,
+  });
+
+  final int totalSpendCents;
+  final int recordCount;
+
+  /// 充电 + 加油笔数。
+  final int energyRecordCount;
+
+  final DateTime? firstRecordAt;
+  final DateTime? latestRecordAt;
+}
+
 /// 日期是否同一天。
 bool isSameDay(DateTime a, DateTime b) =>
     a.year == b.year && a.month == b.month && a.day == b.day;

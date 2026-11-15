@@ -7,7 +7,7 @@
 | 设计稿（对应页面） | [Stitch · 车辆管理与爱车车库页（支持归档与删除）](https://stitch.google.com/projects/9615374848161425677?node-id=20559c50d1d3475ea35ffb9e14cd8099) |
 | 客户端 | Flutter 3.50.0 stable / Dart 3.14 |
 | 平台 | Android（arm64 优先）、iOS |
-| 文档版本 | v0.3（归档页拆分） |
+| 文档版本 | v0.4（含归档页实现） |
 | 状态 | P0 已实现（Mock）；接口未确认 |
 
 > 本文档基于**仓库当前已有实现**（首页、账单、统计、我的页、记账页、单笔详情、月度报表已落地；依赖为 `material_ui`、`flutter_riverpod 3.5`、`fl_chart`、`intl`、`pdf`、`printing`、`share_plus`、`path_provider`）编写。新增目录与文件均为拟实施内容，按 `feat/vehicle-management-*` 分支推进。
@@ -1462,3 +1462,4 @@ await tester.pumpWidget(
 | v0.1 | 2026-11-15 | 首版：现状与复用、store / 仓库 / provider 设计、失效矩阵、三种删除形态、可空选中车辆改造、实施拆分与测试方案 |
 | v0.2 | 2026-11-15 | P0 实施：补充落地文件、前置改造、方案差异、测试与后续事项 |
 | v0.3 | 2026-11-15 | 归档车辆拆分独立页：入口改为路由，移除 `ArchivedVehiclesSheet`，恢复 / 历史报表 / 彻底删除迁入[已归档车辆技术方案](archived-vehicles.md) |
+| v0.4 | 2026-11-15 | 归档页 P0 已实现：`openArchivedVehicles` 路由、旧弹层删除、归档汇总与强确认删除接入，详见归档页技术方案「实施记录」 |

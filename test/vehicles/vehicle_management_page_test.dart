@@ -154,7 +154,7 @@ void main() {
     expect(find.text('已归档车辆'), findsOneWidget);
   });
 
-  testWidgets('已归档车辆可以恢复', (tester) async {
+  testWidgets('已归档入口进入归档页并确认恢复', (tester) async {
     final store = seededVehicleStore(now: _now);
     store.archive('toyota-camry-hev', at: _now);
     await _pumpPage(tester, store: store);
@@ -162,10 +162,15 @@ void main() {
     await tester.scrollUntilVisible(find.text('已归档车辆'), 300);
     await tester.tap(find.text('已归档车辆'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('恢复'));
+
+    expect(find.text('封存座驾列表'), findsOneWidget);
+    await tester.tap(find.text('恢复至车库'));
+    await tester.pumpAndSettle();
+    expect(find.text('将「丰田 凯美瑞 双擎」恢复至车库？'), findsOneWidget);
+    await tester.tap(find.text('确认恢复'));
     await tester.pumpAndSettle();
 
-    expect(find.text('已恢复到车库'), findsOneWidget);
+    expect(find.text('已成功将「丰田 凯美瑞 双擎」恢复至常用车库'), findsOneWidget);
     expect(store.active.length, 4);
     expect(store.archived, isEmpty);
   });

@@ -7,8 +7,8 @@
 | 设计稿 | [已归档车辆查看与恢复页](https://stitch.google.com/projects/9615374848161425677?node-id=24fe8ba805aa41f5a3d53fa2d3946be3)、[彻底删除危险警示弹窗](https://stitch.google.com/projects/9615374848161425677?node-id=d7642ceaebd34d129620e9f35a885b8b) |
 | 客户端 | Flutter 3.50.0 stable / Dart 3.14 |
 | 平台 | Android（arm64 优先）、iOS |
-| 文档版本 | v0.1（待实施） |
-| 状态 | 方案待评审；接口未确认 |
+| 文档版本 | v0.2（P0 已实现） |
+| 状态 | P0 已实现（Mock）；接口未确认 |
 
 > 本文档基于**仓库当前已有实现**编写：车辆管理、归档 / 恢复、删除拦截、首页、账单、统计、我的页、记账、单笔详情、月度报表均已落地；依赖为 `material_ui`、`flutter_riverpod 3.5`、`fl_chart`、`intl`、`pdf`、`printing`、`share_plus`、`path_provider`。
 > 本页是归档车辆的**唯一读写入口**：恢复、查看历史报表、彻底删除都在这里完成；车辆管理页只保留「已归档车辆」工具卡作为入口。
@@ -728,6 +728,7 @@ Future<bool?> showRestoreArchivedVehicleSheet(
 - 正文按 `garageEmpty` 追加「当前车库没有在用车辆，恢复后该车将成为默认主驾。」
 - 提交中 `SheetActionButton(busy: true)`；失败在正文下方显示 `error` 文案并恢复按钮。
 - 成功后 `Navigator.pop(true)`；页面负责 Toast 与列表刷新。
+- `showVehicleSheet(isDismissible: false, enableDrag: false)` + `PopScope(canPop: !_submitting)`：只允许通过「取消」退出；提交中禁止系统返回。
 
 ### 8.7 危险弹层 `PurgeArchivedVehicleSheet`
 
@@ -845,6 +846,7 @@ TextField(
   - 提交中显示 18 圈 loading；
   - **不做 `animate-pulse`**。
 - 安全按钮「暂不删除，保留归档」位于危险按钮上方，`surfaceContainer` 底、`shield` 图标；点击直接 `pop(false)`。
+- 弹层 `isDismissible: false`、`enableDrag: false`，外层 `PopScope(canPop: !_submitting)`；提交中无法通过遮罩、下滑或系统返回关闭，避免命令已成功但页面收不到结果。
 - 勾选行使用 `InkWell` + 自绘 20 × 20 方框，避免 `Checkbox` 默认 48 触控区挤压布局；`Semantics(checked: ...)`。
 - 错误文案位于按钮上方，`Semantics(liveRegion: true)`。
 
@@ -1135,8 +1137,54 @@ Widget 测试通过 provider override 注入带归档记录的 `VehicleStore`，
 
 ---
 
-## 16. 变更记录
+## 16. 实施记录（v0.2）
+
+### 16.1 已落地文件
+
+| 层 | 文件 |
+| --- | --- |
+| 模型 | `lib/features/vehicles/domain/vehicle_models.dart`（`ArchivedVehicleSummary` / `ArchivedGarage`）、`lib/features/ledger/domain/ledger_models.dart`（`VehicleLedgerStats`） |
+| 仓库 | `vehicle_repository.dart`、`mock_vehicle_repository.dart`、`vehicle_store.dart`、`ledger_repository.dart`、`mock_ledger_repository.dart` |
+| 推导 | `vehicle_presenter.dart`（`ArchivedVehiclePresenter`）、`core/domain/enums.dart`（`PowertrainLabel`）、`core/format/formatters.dart`（`formatArchiveDate`） |
+| 状态 | `lib/features/vehicles/domain/providers.dart`（`archivedGarageProvider`、`purge` 命令、失效范围） |
+| 页面 | `archived_vehicles_page.dart`、`archived_vehicles_routes.dart`、`archived_vehicles_style.dart` |
+| 组件 | `archived_vehicles_header.dart`、`archive_notice_card.dart`、`archived_vehicle_card.dart`、`archived_vehicle_metrics.dart`、`archived_vehicle_actions.dart`、`archived_empty_state.dart`、`archive_security_card.dart`、`archived_vehicles_skeleton.dart`、`restore_archived_vehicle_sheet.dart`、`purge_archived_vehicle_sheet.dart` |
+| 入口 | `vehicle_management_page.dart` 改为 `openArchivedVehicles`；删除 `archived_vehicles_sheet.dart` |
+| 报表 | `report_aggregation.dart` 快照补全；`monthly_report_page.dart`、`report_scope_bar.dart`、`report_routes.dart` 支持归档车辆 chip |
+| 详情 | `mock_expense_detail_repository.dart` 支持 `vehicleExists`；车辆不存在时显示「已解绑」 |
+| 测试 | `archived_vehicle_presenter_test.dart`、`archived_vehicles_page_test.dart`、`mock_ledger_repository_vehicle_stats_test.dart`、`report_archived_scope_test.dart`，并扩展 store / mock repo / 详情 / 车辆管理页测试 |
+
+### 16.2 与方案的差异
+
+| # | 方案 | 实现 | 原因 |
+| --- | --- | --- | --- |
+| 1 | `ReportVehicleBrief` 增加 `isArchived`，报表仓库注入 store | 未加字段；`MonthlyReportPage` / `ReportScopeBar` 增加可选 `archivedVehicle` brief，由归档页直接传入 | 避免报表仓库耦合车辆 store，chip 跨月份保持稳定 |
+| 2 | `buildMonthlyReport` 增加 `archivedVehicleIds` | 保留纯函数签名，仅增加「车辆不在列表时用流水快照合成 brief」 | 金额 / 笔数始终来自流水，快照只补抬头信息 |
+| 3 | 无车牌回退车名末 4 字 | P0 禁用删除并提示「该车辆缺少车牌，无法确认删除」 | 车辆模型要求车牌；回退规则与接口校验需产品确认，放 Q7 / P1 |
+| 4 | 卡片逐卡 250ms 收起 | 命令成功时记录 `_displayed` 快照 + `AnimatedSize`，250ms 后释放并刷新 | provider 失效会先于弹层关闭，需本地快照保证动画完整 |
+| 5 | 删除影响清单原文「月度效能报表…抹除」 | 改为「按车统计不再可查看；已导出报表与账单总额不受影响」 | 流水保留、报表文件不回收，避免误导 |
+| 6 | 设计稿顶部搜索 / 筛选图标 | 不渲染 | P1，列表规模小 |
+| 7 | 弹层默认可下滑 / 遮罩关闭 | 恢复与危险弹层改为不可手势关闭，提交中拦截系统返回 | 命令成功后弹层被提前关闭会导致本地移除状态无法收尾 |
+
+### 16.3 验证
+
+- `flutter analyze`：No issues found。
+- `flutter test`：274 个测试全部通过；本轮新增 27 个（presenter 11、页面 5、store 2、仓库 4、账单统计 2、报表 2、详情 1）。
+- Widget 测试覆盖：列表渲染、空态、双因子解锁、尾号错误、删除成功、恢复与默认主驾、入口跳转。
+- 未做真机手工验收与深色模式截图复核；合并前由 CI 执行 analyze / test。
+
+### 16.4 后续
+
+- 真机验收（Android arm64）与深色模式截图。
+- HTTP `VehicleRepository` / `LedgerRepository` 实现与 409 / 404 映射。
+- 无车牌回退、搜索筛选、归档原因、批量清理与回收站（P1）。
+- Mock 账单生成器感知归档 / 删除生命周期，提升演示一致性。
+
+---
+
+## 17. 变更记录
 
 | 版本 | 日期 | 说明 |
 | --- | --- | --- |
 | v0.1 | 2026-11-15 | 首版：定义归档页数据模型、仓库 / store / 命令扩展、双因子删除弹层、报表快照补全、孤儿流水处理、测试与实施拆分 |
+| v0.2 | 2026-11-15 | P0 实施：落地页面、恢复、历史报表与双因子彻底删除；补充实施记录、实现差异与验证结果 |

@@ -7,6 +7,9 @@ abstract class VehicleRepository {
 
   Future<GarageOverview> fetchGarage();
 
+  /// 归档页快照：每车全历史汇总。
+  Future<ArchivedGarage> fetchArchivedGarage();
+
   Future<void> setPrimary(String vehicleId);
 
   Future<void> archive(String vehicleId);
@@ -14,12 +17,20 @@ abstract class VehicleRepository {
   Future<void> restore(String vehicleId);
 
   Future<void> delete(String vehicleId);
+
+  /// 彻底删除归档车辆档案；[plateTail] 由客户端与服务端双重校验。
+  Future<void> purgeArchivedVehicle(
+    String vehicleId, {
+    required String plateTail,
+  });
 }
 
 enum VehicleErrorCode {
   isPrimary,
   hasRecords,
   notFound,
+  notArchived,
+  plateTailMismatch,
   conflict,
   limitReached,
   unknown,

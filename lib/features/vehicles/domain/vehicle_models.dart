@@ -59,6 +59,53 @@ class ArchivedVehicle {
   String get id => vehicle.id;
 }
 
+/// 归档页的单车快照：车辆档案 + 全历史汇总。
+@immutable
+class ArchivedVehicleSummary {
+  const ArchivedVehicleSummary({
+    required this.vehicle,
+    required this.specLabel,
+    required this.sortOrder,
+    required this.archivedAt,
+    required this.lifetimeSpendCents,
+    required this.recordCount,
+    required this.energyRecordCount,
+    this.averageConsumption,
+    this.latestRecordAt,
+  });
+
+  final Vehicle vehicle;
+  final String specLabel;
+  final int sortOrder;
+  final DateTime archivedAt;
+
+  /// 该车全部未删除流水合计（分），退款为负。
+  final int lifetimeSpendCents;
+
+  final int recordCount;
+
+  /// 充电 + 加油笔数。
+  final int energyRecordCount;
+
+  /// 归档前最后一次有效能耗读数；无数据为 null。
+  final EnergyValue? averageConsumption;
+
+  /// 最近一条流水时间；无流水为 null。
+  final DateTime? latestRecordAt;
+
+  String get id => vehicle.id;
+  PowertrainType get powertrain => vehicle.powertrain;
+}
+
+/// 归档页快照：按归档时间倒序。
+@immutable
+class ArchivedGarage {
+  const ArchivedGarage({required this.vehicles, required this.fetchedAt});
+
+  final List<ArchivedVehicleSummary> vehicles;
+  final DateTime fetchedAt;
+}
+
 @immutable
 class FleetSummary {
   const FleetSummary({

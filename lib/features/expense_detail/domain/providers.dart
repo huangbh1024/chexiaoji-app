@@ -3,13 +3,20 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../home/domain/providers.dart';
 import '../../ledger/domain/providers.dart';
 import '../../report/domain/providers.dart';
+import '../../vehicles/data/vehicle_store_provider.dart';
 import '../data/expense_detail_repository.dart';
 import '../data/mock_expense_detail_repository.dart';
 import 'expense_detail_models.dart';
 
 /// 详情仓库：复用账单 Mock 的同一批记录，保证列表与详情一致。
-final expenseDetailRepositoryProvider = Provider<ExpenseDetailRepository>((ref) {
-  return MockExpenseDetailRepository(ref.watch(mockLedgerRepositoryProvider));
+final expenseDetailRepositoryProvider = Provider<ExpenseDetailRepository>((
+  ref,
+) {
+  final store = ref.watch(vehicleStoreProvider);
+  return MockExpenseDetailRepository(
+    ref.watch(mockLedgerRepositoryProvider),
+    vehicleExists: (vehicleId) => store.byId(vehicleId) != null,
+  );
 });
 
 final expenseDetailProvider = AsyncNotifierProvider.autoDispose

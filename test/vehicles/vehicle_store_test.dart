@@ -117,4 +117,43 @@ void main() {
       expect(store.active.single.id, 'a');
     });
   });
+  group('VehicleStore.purge', () {
+    test('仅归档车辆可彻底删除', () {
+      final store = VehicleStore(
+        records: [record('a', 0), record('b', 1)],
+        primaryVehicleId: 'a',
+      );
+
+      expect(
+        () => store.purge('a'),
+        throwsA(
+          isA<VehicleStoreException>().having(
+            (error) => error.error,
+            'error',
+            VehicleStoreError.notArchived,
+          ),
+        ),
+      );
+
+      store.archive('a');
+      store.purge('a');
+      expect(store.byId('a'), isNull);
+      expect(store.archived, isEmpty);
+      expect(store.primaryVehicleId, 'b');
+    });
+
+    test('彻底删除不存在的车辆抛出 notFound', () {
+      final store = VehicleStore(records: [record('a', 0)]);
+      expect(
+        () => store.purge('missing'),
+        throwsA(
+          isA<VehicleStoreException>().having(
+            (error) => error.error,
+            'error',
+            VehicleStoreError.notFound,
+          ),
+        ),
+      );
+    });
+  });
 }

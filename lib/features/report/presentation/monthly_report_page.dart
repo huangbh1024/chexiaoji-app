@@ -23,9 +23,16 @@ import 'widgets/report_scope_bar.dart';
 
 /// 月度报表与导出页：范围选择 + A4 预览 + 导出配置 + 底部操作栏。
 class MonthlyReportPage extends ConsumerStatefulWidget {
-  const MonthlyReportPage({super.key, required this.initialScope});
+  const MonthlyReportPage({
+    super.key,
+    required this.initialScope,
+    this.archivedVehicle,
+  });
 
   final ReportScope initialScope;
+
+  /// 从已归档车辆页进入时传入，用于范围栏展示「（已归档）」。
+  final ReportVehicleBrief? archivedVehicle;
 
   @override
   ConsumerState<MonthlyReportPage> createState() => _MonthlyReportPageState();
@@ -245,6 +252,7 @@ class _MonthlyReportPageState extends ConsumerState<MonthlyReportPage> {
                         delegate: SliverChildListDelegate([
                           ReportScopeBar(
                             scope: _scope,
+                            archivedVehicle: widget.archivedVehicle,
                             onMonthChanged: _onMonthChanged,
                             onVehicleChanged: _onVehicleChanged,
                           ),
