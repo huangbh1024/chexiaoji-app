@@ -168,6 +168,30 @@ class MockLedgerRepository implements LedgerRepository {
   }
 
   @override
+  Future<VehicleLedgerStats> fetchVehicleStats(String vehicleId) async {
+    final now = DateTime.now();
+    final from = DateTime(now.year, now.month - 23);
+    final records = recordsBetween(
+      from,
+      now,
+    ).where((record) => record.vehicleId == vehicleId).toList(growable: false);
+
+    return VehicleLedgerStats(
+      totalSpendCents: _sum(records),
+      recordCount: records.length,
+      energyRecordCount: records
+          .where(
+            (record) =>
+                record.category == ExpenseCategory.charging ||
+                record.category == ExpenseCategory.fuel,
+          )
+          .length,
+      firstRecordAt: records.isEmpty ? null : records.first.occurredAt,
+      latestRecordAt: records.isEmpty ? null : records.last.occurredAt,
+    );
+  }
+
+  @override
   Future<int> countRecords({String? vehicleId}) async {
     final now = DateTime.now();
     final from = DateTime(now.year, now.month - 23);
@@ -175,9 +199,7 @@ class MockLedgerRepository implements LedgerRepository {
     if (vehicleId == null) {
       return records.length;
     }
-    return records
-        .where((record) => record.vehicleId == vehicleId)
-        .length;
+    return records.where((record) => record.vehicleId == vehicleId).length;
   }
 
   /// 按 id 查找记录：先查索引，再回扫最近 24 个月。

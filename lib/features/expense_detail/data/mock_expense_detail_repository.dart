@@ -8,10 +8,14 @@ class MockExpenseDetailRepository implements ExpenseDetailRepository {
   MockExpenseDetailRepository(
     this.ledger, {
     this.delay = const Duration(milliseconds: 120),
+    this.vehicleExists,
   });
 
   final MockLedgerRepository ledger;
   final Duration delay;
+
+  /// 车辆档案是否存在；彻底删除车辆后，历史流水应展示为「已解绑」。
+  final bool Function(String vehicleId)? vehicleExists;
 
   final Map<String, String?> _noteOverrides = {};
   final Map<String, List<String>> _tagOverrides = {};
@@ -77,10 +81,10 @@ class MockExpenseDetailRepository implements ExpenseDetailRepository {
       payment: payment,
       tags: List<String>.unmodifiable(sanitizeTags(tags)),
       note: normalizeNote(note ?? ''),
-      vehicleBound: true,
-      updatedAt: _updatedAt[record.id] ?? record.occurredAt.add(
-        const Duration(minutes: 2),
-      ),
+      vehicleBound: vehicleExists?.call(record.vehicleId) ?? true,
+      updatedAt:
+          _updatedAt[record.id] ??
+          record.occurredAt.add(const Duration(minutes: 2)),
     );
   }
 
@@ -131,12 +135,9 @@ class MockExpenseDetailRepository implements ExpenseDetailRepository {
 
   String _defaultNote(ExpenseCategory category) {
     return switch (category) {
-      ExpenseCategory.charging =>
-        '周五午休顺道补电，车机空调开启休息模式，体验顺畅。',
-      ExpenseCategory.fuel =>
-        '周末出省自驾前加满一箱 95# 汽油，使用加油优惠券减免 20 元，油枪跳枪准。',
-      ExpenseCategory.maintenance =>
-        '完成基础保养，更换空调滤芯、刹车油以及底盘螺栓紧固，服务专业。',
+      ExpenseCategory.charging => '周五午休顺道补电，车机空调开启休息模式，体验顺畅。',
+      ExpenseCategory.fuel => '周末出省自驾前加满一箱 95# 汽油，使用加油优惠券减免 20 元，油枪跳枪准。',
+      ExpenseCategory.maintenance => '完成基础保养，更换空调滤芯、刹车油以及底盘螺栓紧固，服务专业。',
       ExpenseCategory.parking => '晚餐消费积分抵扣了 1 小时停车券，出场自动抬杆。',
       ExpenseCategory.toll => '早高峰前往前海自贸区会议，走沿江高速全程畅通。',
       ExpenseCategory.carWash => '下班前顺路洗了外观和内饰，轮毂泥沙都冲洗干净。',

@@ -4,28 +4,44 @@ import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_tokens.dart';
 
 /// 车库统一底部弹层：透明背景 + 32 顶部圆角 + 系统安全区。
-Future<T?> showVehicleSheet<T>(BuildContext context, WidgetBuilder builder) {
+Future<T?> showVehicleSheet<T>(
+  BuildContext context,
+  WidgetBuilder builder, {
+  double maxHeightFactor = 0.74,
+  bool isDismissible = true,
+  bool enableDrag = true,
+}) {
   return showModalBottomSheet<T>(
     context: context,
     isScrollControlled: true,
     useSafeArea: false,
     backgroundColor: Colors.transparent,
     barrierColor: Colors.black.withValues(alpha: 0.42),
-    builder: (sheetContext) => VehicleSheetShell(child: builder(sheetContext)),
+    isDismissible: isDismissible,
+    enableDrag: enableDrag,
+    builder: (sheetContext) => VehicleSheetShell(
+      maxHeightFactor: maxHeightFactor,
+      child: builder(sheetContext),
+    ),
   );
 }
 
 class VehicleSheetShell extends StatelessWidget {
-  const VehicleSheetShell({super.key, required this.child});
+  const VehicleSheetShell({
+    super.key,
+    required this.child,
+    this.maxHeightFactor = 0.74,
+  });
 
   final Widget child;
+  final double maxHeightFactor;
 
   @override
   Widget build(BuildContext context) {
     final palette = context.palette;
     return Container(
       constraints: BoxConstraints(
-        maxHeight: MediaQuery.sizeOf(context).height * 0.74,
+        maxHeight: MediaQuery.sizeOf(context).height * maxHeightFactor,
       ),
       decoration: BoxDecoration(
         color: palette.surface,

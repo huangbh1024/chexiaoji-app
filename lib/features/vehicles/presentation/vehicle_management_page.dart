@@ -17,9 +17,9 @@ import '../../stats/domain/providers.dart';
 import '../domain/providers.dart';
 import '../domain/vehicle_models.dart';
 import '../domain/vehicle_presenter.dart';
+import 'archived_vehicles_routes.dart';
 import 'widgets/add_vehicle_card.dart';
 import 'widgets/archived_entry_card.dart';
-import 'widgets/archived_vehicles_sheet.dart';
 import 'widgets/fleet_summary_card.dart';
 import 'widgets/vehicle_confirm_sheets.dart';
 import 'widgets/vehicle_management_header.dart';
@@ -164,7 +164,7 @@ class VehicleManagementPage extends ConsumerWidget {
         const SizedBox(height: 12),
         ArchivedEntryCard(
           count: overview.archivedVehicles.length,
-          onTap: () => _openArchived(context, ref, overview),
+          onTap: () => openArchivedVehicles(context),
         ),
       ],
     ];
@@ -315,24 +315,6 @@ class VehicleManagementPage extends ConsumerWidget {
     }
     if (result == DeleteSheetResult.deleted) {
       showAppToast(context, '已删除「${vehicle.vehicle.name}」');
-    }
-  }
-
-  Future<void> _openArchived(
-    BuildContext context,
-    WidgetRef ref,
-    GarageOverview garage,
-  ) async {
-    final restored = await showArchivedVehiclesSheet(
-      context,
-      garage.archivedVehicles,
-      onRestore: (vehicleId) => _runCommand(
-        ref,
-        () => ref.read(vehicleCommandProvider.notifier).restore(vehicleId),
-      ),
-    );
-    if (restored == true && context.mounted) {
-      showAppToast(context, '已恢复到车库');
     }
   }
 

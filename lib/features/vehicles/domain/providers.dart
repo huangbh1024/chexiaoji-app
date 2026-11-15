@@ -24,7 +24,14 @@ final garageProvider = FutureProvider<GarageOverview>((ref) {
   return ref.watch(vehicleRepositoryProvider).fetchGarage();
 });
 
-enum VehicleCommandKind { setPrimary, archive, restore, delete }
+/// 归档页快照：每车全历史汇总；离开页面即释放。
+final archivedGarageProvider = FutureProvider.autoDispose<ArchivedGarage>((
+  ref,
+) {
+  return ref.watch(vehicleRepositoryProvider).fetchArchivedGarage();
+});
+
+enum VehicleCommandKind { setPrimary, archive, restore, delete, purge }
 
 @immutable
 class VehicleCommandState {
@@ -75,6 +82,16 @@ class VehicleCommandNotifier extends Notifier<VehicleCommandState> {
     return _run(
       VehicleCommandKind.delete,
       () => ref.read(vehicleRepositoryProvider).delete(vehicleId),
+      affectedVehicleId: vehicleId,
+    );
+  }
+
+  Future<bool> purge(String vehicleId, String plateTail) {
+    return _run(
+      VehicleCommandKind.purge,
+      () => ref
+          .read(vehicleRepositoryProvider)
+          .purgeArchivedVehicle(vehicleId, plateTail: plateTail),
       affectedVehicleId: vehicleId,
     );
   }
@@ -135,6 +152,7 @@ class VehicleCommandNotifier extends Notifier<VehicleCommandState> {
 
   void _invalidateAll() {
     ref.invalidate(garageProvider);
+    ref.invalidate(archivedGarageProvider);
     ref.invalidate(vehiclesProvider);
     ref.invalidate(homeDashboardProvider);
     ref.invalidate(breakdownProvider);
@@ -155,6 +173,8 @@ class VehicleCommandNotifier extends Notifier<VehicleCommandState> {
       VehicleErrorCode.isPrimary => '请先将其他座驾设为主驾后再删除。',
       VehicleErrorCode.hasRecords => '该车辆有历史流水，请先归档。',
       VehicleErrorCode.notFound => '车辆已不存在，请刷新车库。',
+      VehicleErrorCode.notArchived => '该车辆已恢复，请在车库中操作。',
+      VehicleErrorCode.plateTailMismatch => '车牌尾号不匹配，请重新输入。',
       VehicleErrorCode.conflict => '车辆信息已更新，请重试。',
       VehicleErrorCode.limitReached => '车库车辆已达上限。',
       VehicleErrorCode.unknown => '操作失败，请重试',

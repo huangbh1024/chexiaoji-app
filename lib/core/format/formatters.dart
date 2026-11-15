@@ -86,6 +86,9 @@ String formatDateTimeMinute(DateTime time) {
 /// 月份标签，例如 `2026年11月`。
 String formatMonthLabel(DateTime month) => DateFormat('yyyy年M月').format(month);
 
+/// 归档日期，例如 `2024年8月15日`。
+String formatArchiveDate(DateTime date) => DateFormat('yyyy年M月d日').format(date);
+
 /// 账单分组的日期标题：
 /// `今天 · 6月28日` / `6月20日 · 周四` / 跨年 `2025年12月31日 · 周三`。
 String formatDayTitle(DateTime day, {DateTime? now}) {

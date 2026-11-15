@@ -8,6 +8,16 @@ library;
 /// 车辆动力类型。UI 的颜色 / 图标映射放在各 feature 的 presentation 层。
 enum PowertrainType { ev, hev, phev, ice }
 
+/// 动力类型标准文案；车辆档案缺失时用于快照补全与归档卡片。
+extension PowertrainLabel on PowertrainType {
+  String get label => switch (this) {
+    PowertrainType.ev => '纯电',
+    PowertrainType.phev => '插电混动',
+    PowertrainType.hev => '油电混动',
+    PowertrainType.ice => '纯燃油',
+  };
+}
+
 enum TrendDirection { up, down, flat, none }
 
 /// 保养提醒状态，首页与统计页共用。

@@ -11,10 +11,7 @@ void main() {
 
   setUp(() {
     ledger = MockLedgerRepository(delay: Duration.zero);
-    repository = MockExpenseDetailRepository(
-      ledger,
-      delay: Duration.zero,
-    );
+    repository = MockExpenseDetailRepository(ledger, delay: Duration.zero);
   });
 
   Future<LedgerRecord> firstRecord() async {
@@ -48,7 +45,11 @@ void main() {
     final withNote = await repository.updateNote(record.id, '新的备注');
     expect(withNote.note, '新的备注');
 
-    final withTags = await repository.updateTags(record.id, ['  #甲 ', '乙', '甲']);
+    final withTags = await repository.updateTags(record.id, [
+      '  #甲 ',
+      '乙',
+      '甲',
+    ]);
     expect(withTags.tags, ['甲', '乙']);
   });
 
@@ -94,5 +95,17 @@ void main() {
     final detail = await repository.updateTags(record.id, tags);
 
     expect(detail.tags.length, ExpenseDetailRules.maxTags);
+  });
+  test('车辆档案不存在时详情标记为未绑定', () async {
+    final record = await firstRecord();
+    final unboundRepository = MockExpenseDetailRepository(
+      ledger,
+      delay: Duration.zero,
+      vehicleExists: (_) => false,
+    );
+
+    final detail = await unboundRepository.fetchDetail(record.id);
+
+    expect(detail.vehicleBound, isFalse);
   });
 }

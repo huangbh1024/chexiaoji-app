@@ -178,6 +178,18 @@ class VehicleStore {
     _primaryVehicleId ??= id;
   }
 
+  /// 删除归档车辆档案。仅归档记录可删除；在库车辆走 [delete] 规则。
+  void purge(String id) {
+    final record = require(id);
+    if (!record.isArchived) {
+      throw const VehicleStoreException(VehicleStoreError.notArchived);
+    }
+    _records.removeWhere((item) => item.id == id);
+    if (_primaryVehicleId == id) {
+      _primaryVehicleId = null;
+    }
+  }
+
   void delete(String id) {
     final record = require(id);
     if (_primaryVehicleId == id && active.length > 1) {

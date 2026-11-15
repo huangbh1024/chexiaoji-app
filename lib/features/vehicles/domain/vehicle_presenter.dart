@@ -210,3 +210,89 @@ abstract final class VehiclePresenter {
     return target.difference(today).inDays;
   }
 }
+
+/// 归档页展示推导：封存天数、三指标、车牌尾号与删除影响清单。
+abstract final class ArchivedVehiclePresenter {
+  /// 车牌去空格与分隔符后取末 5 位；不足 5 位取全部。
+  static String plateTailOf(String plate, {int length = 5}) {
+    final normalized = plate.replaceAll(RegExp(r'[\s·•\-]'), '').toUpperCase();
+    if (normalized.isEmpty) {
+      return '';
+    }
+    return normalized.length <= length
+        ? normalized
+        : normalized.substring(normalized.length - length);
+  }
+
+  /// 封存天数：0 → 「今日封存」，其余「封存 n 天」。
+  static String archiveDurationLabel(DateTime archivedAt, {DateTime? now}) {
+    final reference = now ?? DateTime.now();
+    final today = DateTime(reference.year, reference.month, reference.day);
+    final target = DateTime(archivedAt.year, archivedAt.month, archivedAt.day);
+    final days = today.difference(target).inDays;
+    if (days <= 0) {
+      return '今日封存';
+    }
+    return '封存 $days 天';
+  }
+
+  /// 归档卡三指标；缺失值显示「— / 未录入」。
+  static List<VehicleMetric> metricsOf(ArchivedVehicleSummary vehicle) {
+    final consumption = vehicle.averageConsumption;
+    final label = consumptionLabel(vehicle.powertrain);
+    return [
+      VehicleMetric(
+        label: '封存总里程',
+        value: formatKmValue(vehicle.vehicle.odometerKm),
+        unit: 'km',
+      ),
+      VehicleMetric(
+        label: '累计记账花费',
+        value: formatYuanCompact(vehicle.lifetimeSpendCents),
+        unit: '',
+      ),
+      if (consumption == null)
+        _missing(label)
+      else
+        VehicleMetric(
+          label: label,
+          value: formatOneDecimal(consumption.value),
+          unit: consumption.unit,
+          tone: VehicleMetricTone.accent,
+        ),
+    ];
+  }
+
+  static String consumptionLabel(PowertrainType type) {
+    return switch (type) {
+      PowertrainType.ev || PowertrainType.phev => '历史平均电耗',
+      PowertrainType.hev || PowertrainType.ice => '历史综合油耗',
+    };
+  }
+
+  static VehicleMetric _missing(String label) => VehicleMetric(
+    label: label,
+    value: '—',
+    unit: '未录入',
+    tone: VehicleMetricTone.muted,
+    missing: true,
+  );
+
+  /// 有流水且能定位月份时才允许打开历史报表。
+  static bool canOpenReports(ArchivedVehicleSummary vehicle) {
+    return vehicle.recordCount > 0 && vehicle.latestRecordAt != null;
+  }
+
+  /// 删除影响清单的第一项文案。
+  static String impactRecordsText(ArchivedVehicleSummary vehicle) {
+    if (vehicle.recordCount == 0) {
+      return '该车暂无记账流水，账单不受影响。';
+    }
+    return '该车名下 ${formatCount(vehicle.recordCount)} 笔记账、'
+        '合计 ${formatYuanCompact(vehicle.lifetimeSpendCents)}，'
+        '将继续保留在账单与报表中，但不再归属任何车辆。';
+  }
+
+  static String archiveDateLabel(DateTime archivedAt) =>
+      '归档于 ${formatArchiveDate(archivedAt)}';
+}

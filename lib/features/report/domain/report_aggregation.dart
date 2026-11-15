@@ -33,11 +33,20 @@ MonthlyReport buildMonthlyReport({
       .where((record) => record.category == ExpenseCategory.fuel)
       .fold(0.0, (sum, record) => sum + (record.metrics.liters ?? 0));
 
-  final scopedVehicles = scope.vehicleId == null
+  var scopedVehicles = scope.vehicleId == null
       ? vehicles
       : vehicles
             .where((vehicle) => vehicle.id == scope.vehicleId)
             .toList(growable: false);
+
+  // 归档 / 已删除车辆不在在库列表中：用流水快照补全车辆简报，
+  // 保证报表抬头、车牌与里程不空白。金额与笔数仍来自流水。
+  if (scope.vehicleId != null && scopedVehicles.isEmpty) {
+    final archived = _vehicleSnapshotFromRecords(records, scope.vehicleId!);
+    if (archived != null) {
+      scopedVehicles = [archived];
+    }
+  }
 
   final momPercent = momPercentFor(totalCents, previousTotalCents);
 
@@ -85,6 +94,36 @@ MonthlyReport buildMonthlyReport({
     daily: buildDailyPoints(records, month, lastDay),
     verified: false,
     verificationText: kLocalVerificationText,
+  );
+}
+
+/// 从流水快照还原车辆简报；无该车流水时返回 null。
+Vehicle? _vehicleSnapshotFromRecords(
+  List<LedgerRecord> records,
+  String vehicleId,
+) {
+  LedgerRecord? sample;
+  var latestOdometer = 0;
+  for (final record in records) {
+    if (record.vehicleId != vehicleId) {
+      continue;
+    }
+    sample ??= record;
+    final odometer = record.metrics.odometerKm ?? 0;
+    if (odometer > latestOdometer) {
+      latestOdometer = odometer;
+    }
+  }
+  if (sample == null) {
+    return null;
+  }
+  return Vehicle(
+    id: sample.vehicleId,
+    name: sample.vehicleName ?? sample.vehicleShortName,
+    plate: sample.metrics.plate ?? '',
+    powertrain: sample.powertrain,
+    powertrainLabel: sample.powertrain.label,
+    odometerKm: latestOdometer,
   );
 }
 

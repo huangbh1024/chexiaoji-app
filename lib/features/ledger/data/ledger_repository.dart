@@ -16,4 +16,7 @@ abstract class LedgerRepository {
 
   /// 账号生命周期内、未删除的记录数；传入 [vehicleId] 时只统计该车。
   Future<int> countRecords({String? vehicleId});
+
+  /// 单车全历史统计：总额、笔数、能耗笔数与首末记录时间。
+  Future<VehicleLedgerStats> fetchVehicleStats(String vehicleId);
 }

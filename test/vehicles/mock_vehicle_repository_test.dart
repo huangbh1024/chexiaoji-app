@@ -163,4 +163,66 @@ void main() {
     await onlyRepository.restore('only-vehicle');
     expect(emptyStore.primaryVehicleId, 'only-vehicle');
   });
+  test('归档快照包含累计花费、能耗与最近流水时间', () async {
+    await repository.archive('toyota-camry-hev');
+    final archived = await repository.fetchArchivedGarage();
+
+    expect(archived.vehicles, hasLength(1));
+    final summary = archived.vehicles.single;
+    expect(summary.id, 'toyota-camry-hev');
+    expect(summary.recordCount, greaterThan(0));
+    expect(summary.lifetimeSpendCents, greaterThan(0));
+    expect(summary.energyRecordCount, greaterThan(0));
+    expect(summary.averageConsumption, isNotNull);
+    expect(summary.latestRecordAt, isNotNull);
+  });
+
+  test('彻底删除校验车牌尾号并移除归档档案', () async {
+    await repository.archive('toyota-camry-hev');
+
+    await expectLater(
+      repository.purgeArchivedVehicle('toyota-camry-hev', plateTail: '00000'),
+      throwsA(
+        isA<VehicleOperationException>().having(
+          (error) => error.code,
+          'code',
+          VehicleErrorCode.plateTailMismatch,
+        ),
+      ),
+    );
+
+    await repository.purgeArchivedVehicle(
+      'toyota-camry-hev',
+      plateTail: '7q315',
+    );
+    expect(store.byId('toyota-camry-hev'), isNull);
+    final archived = await repository.fetchArchivedGarage();
+    expect(archived.vehicles, isEmpty);
+  });
+
+  test('在库车辆不能走彻底删除', () async {
+    await expectLater(
+      repository.purgeArchivedVehicle('byd-han-ev', plateTail: 'D82K6'),
+      throwsA(
+        isA<VehicleOperationException>().having(
+          (error) => error.code,
+          'code',
+          VehicleErrorCode.notArchived,
+        ),
+      ),
+    );
+  });
+
+  test('彻底删除不存在的车辆返回 notFound', () async {
+    await expectLater(
+      repository.purgeArchivedVehicle('missing', plateTail: '00000'),
+      throwsA(
+        isA<VehicleOperationException>().having(
+          (error) => error.code,
+          'code',
+          VehicleErrorCode.notFound,
+        ),
+      ),
+    );
+  });
 }
