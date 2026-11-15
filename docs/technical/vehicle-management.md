@@ -7,8 +7,8 @@
 | 设计稿（对应页面） | [Stitch · 车辆管理与爱车车库页（支持归档与删除）](https://stitch.google.com/projects/9615374848161425677?node-id=20559c50d1d3475ea35ffb9e14cd8099) |
 | 客户端 | Flutter 3.50.0 stable / Dart 3.14 |
 | 平台 | Android（arm64 优先）、iOS |
-| 文档版本 | v0.1（草案） |
-| 状态 | 未实施；接口未确认，客户端先用 Mock |
+| 文档版本 | v0.2（P0 已实现） |
+| 状态 | P0 已实现（Mock）；接口未确认 |
 
 > 本文档基于**仓库当前已有实现**（首页、账单、统计、我的页、记账页、单笔详情、月度报表已落地；依赖为 `material_ui`、`flutter_riverpod 3.5`、`fl_chart`、`intl`、`pdf`、`printing`、`share_plus`、`path_provider`）编写。新增目录与文件均为拟实施内容，按 `feat/vehicle-management-*` 分支推进。
 > 需求口径以[需求文档 v0.1](../requirements/vehicle-management.md) 的「口径建议（Q1–Q14）」为准。接口契约见需求文档 §8，本文档 §6 只描述客户端映射与容错。
@@ -1402,8 +1402,59 @@ await tester.pumpWidget(
 
 ---
 
-## 16. 变更记录
+## 16. 实施记录（v0.2）
+
+### 16.1 已落地文件
+
+| 层 | 文件 |
+| --- | --- |
+| 状态 / 数据 | `lib/features/vehicles/data/vehicle_store.dart`、`vehicle_seed_data.dart`、`vehicle_store_provider.dart`、`vehicle_repository.dart`、`mock_vehicle_repository.dart` |
+| 领域 | `lib/features/vehicles/domain/vehicle_models.dart`、`vehicle_presenter.dart`、`providers.dart` |
+| 页面 | `lib/features/vehicles/presentation/vehicle_management_page.dart`、`vehicle_management_routes.dart`、`vehicle_management_style.dart` |
+| 组件 | `widgets/vehicle_management_header.dart`、`fleet_summary_card.dart`、`vehicle_member_card.dart`、`add_vehicle_card.dart`、`archived_entry_card.dart`、`vehicle_management_skeleton.dart`、`vehicle_sheet_shell.dart`、`vehicle_more_sheet.dart`、`vehicle_confirm_sheets.dart`、`archived_vehicles_sheet.dart` |
+| 测试 | `test/vehicles/vehicle_store_test.dart`、`vehicle_presenter_test.dart`、`mock_vehicle_repository_test.dart`、`vehicle_management_page_test.dart`、`home_empty_garage_test.dart` |
+
+### 16.2 前置改造
+
+- `selectedVehicleIdProvider` 改为 `Notifier<String?>`；新增 `effectiveVehicleIdProvider` 作为首页 / 记账 / 统计 / Tab 壳的统一兜底。
+- 首页 6 个 section 在无可用车辆时返回空占位；`HomePage` 为空车库展示 `EmptyState`；下拉刷新做空判断。
+- `MockHomeRepository` 注入 `VehicleStore`，`fetchVehicles()` 只返回在库车辆，`defaultVehicleId` 改为可空。
+- `LedgerRepository` 新增 `countRecords({String? vehicleId})`，Mock 使用近 24 个月窗口，与生命周期统计一致。
+- 首页「管理车辆」、我的「管理爱车」、单笔详情车辆箭头改为 `openVehicleManagement`；添加 / 编辑爱车仍为 Toast。
+
+### 16.3 与方案的差异
+
+| 项 | 方案 | 实施 |
+| --- | --- | --- |
+| 归档模型 | `ManagedVehicle.archivedAt` | 独立 `ArchivedVehicle`，不伪造能耗 / 保养指标 |
+| 主驾继任 | store 内计算并写入 | 同方案；归档确认弹窗动态展示继任车名 |
+| 删除拦截 | 客户端 + 服务端双校验 | Mock 仓库先查主驾、再查 `countRecords`；无网络冲突 / 上限路径 |
+| 恢复文案 | 可带车名 | 统一 Toast「已恢复到车库」，车名在归档列表可见 |
+| 上限 | 建议 10 辆 | 未在 Mock 强制执行；`AddVehicleCard` 预留 `enabled` 参数 |
+| 添加 / 编辑 | P1 路由契约 | 仅 Toast，未创建编辑页与 `openVehicleEditor` 实现 |
+| 排序 | P1 拖拽 | 未实现；页面不展示「长按可调换顺序」 |
+| 车联网 | P1 | 不展示 |
+
+### 16.4 验证
+
+- `flutter analyze`：0 issue。
+- `flutter test`：247 个测试全部通过；新增 35 个（store 8、presenter 12、repository 8、页面 6、空车库首页 1）。
+- 页面 Widget 测试覆盖：渲染、设主驾确认与重排、删除流水拦截、归档与已归档入口、空车库、恢复。
+- 未做真机手工验收与深色模式截图复核；PR 合并前由 CI 执行 analyze / test。
+
+### 16.5 后续
+
+- 添加 / 编辑爱车页（行驶证 OCR、车型库、能耗基准、保险 / 年检字段编辑）。
+- 拖拽排序与顺序持久化。
+- 车联网授权与自动里程同步。
+- HTTP `VehicleRepository` 实现、409 冲突 / 上限处理、离线队列。
+- 已归档车辆迁入设置页。
+
+---
+
+## 17. 变更记录
 
 | 版本 | 日期 | 说明 |
 | --- | --- | --- |
 | v0.1 | 2026-11-15 | 首版：现状与复用、store / 仓库 / provider 设计、失效矩阵、三种删除形态、可空选中车辆改造、实施拆分与测试方案 |
+| v0.2 | 2026-11-15 | P0 实施：补充落地文件、前置改造、方案差异、测试与后续事项 |
