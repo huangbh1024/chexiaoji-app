@@ -3,7 +3,7 @@
 | 项目 | 内容 |
 | --- | --- |
 | 关联需求 | [车辆管理需求文档 v0.1](../requirements/vehicle-management.md) |
-| 关联方案 | [我的页技术方案](profile.md)、[首页技术方案](home-dashboard.md)、[记账页技术方案](expense-entry.md)、[已归档车辆技术方案](archived-vehicles.md) |
+| 关联方案 | [我的页技术方案](profile.md)、[首页技术方案](home-dashboard.md)、[记账页技术方案](expense-entry.md)、[已归档车辆技术方案](archived-vehicles.md)、[添加 / 编辑爱车技术方案](vehicle-editor.md) |
 | 设计稿（对应页面） | [Stitch · 车辆管理与爱车车库页（支持归档与删除）](https://stitch.google.com/projects/9615374848161425677?node-id=20559c50d1d3475ea35ffb9e14cd8099) |
 | 客户端 | Flutter 3.50.0 stable / Dart 3.14 |
 | 平台 | Android（arm64 优先）、iOS |
@@ -1225,10 +1225,15 @@ void _openStats(BuildContext context, WidgetRef ref, String vehicleId) {
 
 ```dart
 class VehicleEditorResult {
-  const VehicleEditorResult({required this.vehicleId, required this.created});
+  const VehicleEditorResult({
+    required this.vehicleId,
+    required this.created,
+    this.archived = false,
+  });
 
   final String vehicleId;
   final bool created;
+  final bool archived;
 }
 
 Future<VehicleEditorResult?> openVehicleEditor(
@@ -1240,6 +1245,7 @@ Future<VehicleEditorResult?> openVehicleEditor(
 - `vehicleId == null` 为新增，否则编辑。
 - 返回 `null` 表示取消；返回结果后本页失效车库并滚动到该车（新增时滚动到底部）。
 - P0 两者均为 Toast；路由常量可以提前定义但页面未实现时不引用，避免悬空路由。
+- 页面与保存流程的完整方案见 [添加 / 编辑爱车技术方案](vehicle-editor.md)；实施后替换为 `openVehicleEditor`。
 
 ### 9.5 系统返回
 

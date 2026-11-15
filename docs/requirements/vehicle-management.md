@@ -8,8 +8,8 @@
 | 设计稿（当前版） | [Stitch · 车辆管理与爱车车库页（支持归档与删除）](https://stitch.google.com/projects/9615374848161425677?node-id=20559c50d1d3475ea35ffb9e14cd8099) |
 | 其他稿（对照，不作为基线） | [车辆管理与爱车车库页](https://stitch.google.com/projects/9615374848161425677?node-id=7c00a9699e944106b3f8e620b05e2394)、[车辆管理与添加车辆页](https://stitch.google.com/projects/9615374848161425677?node-id=57be428b61754dfebbac299f1eb3e350)、[添加与编辑爱车（独立页）](https://stitch.google.com/projects/9615374848161425677?node-id=62ee59d6a4d64824bd161e87e590c2d9) |
 | 设计系统 | Lumina Velocity（Plus Jakarta Sans、翡翠绿主色、全圆角、柔和阴影） |
-| 关联页面 | 我的页（入口）、首页（管理车辆 / 添加车辆）、统计页（车辆弹层）、账单页、记账页、单笔开销详情、添加 / 编辑爱车页（P1） |
-| 关联文档 | [我的页需求](profile.md) · [首页需求](home-dashboard.md) · [统计需求](statistics.md) · [记账需求](expense-entry.md) · [账单需求](ledger.md) · [已归档车辆需求](archived-vehicles.md) |
+| 关联页面 | 我的页（入口）、首页（管理车辆 / 添加车辆）、统计页（车辆弹层）、账单页、记账页、单笔开销详情、[添加 / 编辑爱车页](vehicle-editor.md)（P1） |
+| 关联文档 | [我的页需求](profile.md) · [首页需求](home-dashboard.md) · [统计需求](statistics.md) · [记账需求](expense-entry.md) · [账单需求](ledger.md) · [已归档车辆需求](archived-vehicles.md) · [添加 / 编辑爱车需求](vehicle-editor.md) |
 | 技术方案 | [docs/technical/vehicle-management.md](../technical/vehicle-management.md) |
 | 状态 | P0 已实现（Mock）；接口契约未确认 |
 
@@ -58,7 +58,7 @@
 | Q9 资产健康徽标 | 无预警显示「全部在库良好」；有预警显示「N 项待处理」；无提醒数据不显示徽标 | 建议，待确认 |
 | Q10 第三指标 | 按动力类型取电池健康 / 车险剩余 / 亏电油耗；缺失显示「— + 未录入」，不编造 | 建议，待确认 |
 | Q11 设为默认主驾的联动 | 首页立即切到该车；记账页下次默认该车；统计页保持用户当前筛选 | 建议，待确认 |
-| Q12 添加 / 编辑页面 | 独立页面、独立需求文档；本页只定义跳转契约，P0 Toast 占位 | 建议，待确认 |
+| Q12 添加 / 编辑页面 | 独立页面，需求见 [添加 / 编辑爱车需求](vehicle-editor.md)；本页只定义跳转契约，P0 Toast 占位 | 已定义，待实施 |
 | Q13 车联网同步卡 | P0 不展示；接入真实车联服务后再显示 | 建议，待确认 |
 | Q14 深色模式 | 复用 `AppPalette.dark` / `AppTokens.dark` 推导，无独立设计稿 | 建议，待确认 |
 
