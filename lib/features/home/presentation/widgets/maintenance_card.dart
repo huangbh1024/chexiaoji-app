@@ -105,27 +105,29 @@ class _MaintenanceContent extends StatelessWidget {
                     ],
                   ),
                 ),
-                const SizedBox(width: 6),
-                SizedBox(
-                  width: 44,
-                  height: 44,
-                  child: TweenAnimationBuilder<double>(
-                    tween: Tween<double>(
-                      begin: 0,
-                      end: (maintenance.progressPercent / 100).clamp(0, 1),
+                if (maintenance.hasProgress) ...[
+                  const SizedBox(width: 6),
+                  SizedBox(
+                    width: 44,
+                    height: 44,
+                    child: TweenAnimationBuilder<double>(
+                      tween: Tween<double>(
+                        begin: 0,
+                        end: (maintenance.progressPercent / 100).clamp(0, 1),
+                      ),
+                      duration: const Duration(milliseconds: 600),
+                      curve: Curves.easeOutCubic,
+                      builder: (context, value, child) {
+                        return ProgressRing(
+                          size: 44,
+                          progress: value,
+                          color: accent,
+                          trackColor: palette.surfaceContainer,
+                        );
+                      },
                     ),
-                    duration: const Duration(milliseconds: 600),
-                    curve: Curves.easeOutCubic,
-                    builder: (context, value, child) {
-                      return ProgressRing(
-                        size: 44,
-                        progress: value,
-                        color: accent,
-                        trackColor: palette.surfaceContainer,
-                      );
-                    },
                   ),
-                ),
+                ],
               ],
             ),
         ],

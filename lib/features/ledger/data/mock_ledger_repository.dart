@@ -192,6 +192,30 @@ class MockLedgerRepository implements LedgerRepository {
   }
 
   @override
+  Future<int?> latestOdometerForVehicle(String vehicleId) async {
+    return latestOdometer(vehicleId);
+  }
+
+  @override
+  Future<int?> latestMaintenanceOdometer(String vehicleId) async {
+    final now = DateTime.now();
+    final records = recordsBetween(DateTime(now.year, now.month - 23), now)
+        .where(
+          (record) =>
+              record.vehicleId == vehicleId &&
+              record.category == ExpenseCategory.maintenance &&
+              (record.metrics.odometerKm ?? 0) > 0,
+        );
+    LedgerRecord? latest;
+    for (final record in records) {
+      if (latest == null || record.occurredAt.isAfter(latest.occurredAt)) {
+        latest = record;
+      }
+    }
+    return latest?.metrics.odometerKm;
+  }
+
+  @override
   Future<int> countRecords({String? vehicleId}) async {
     final now = DateTime.now();
     final from = DateTime(now.year, now.month - 23);

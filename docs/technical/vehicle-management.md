@@ -1244,8 +1244,8 @@ Future<VehicleEditorResult?> openVehicleEditor(
 
 - `vehicleId == null` 为新增，否则编辑。
 - 返回 `null` 表示取消；返回结果后本页失效车库并滚动到该车（新增时滚动到底部）。
-- P0 两者均为 Toast；路由常量可以提前定义但页面未实现时不引用，避免悬空路由。
-- 页面与保存流程的完整方案见 [添加 / 编辑爱车技术方案](vehicle-editor.md)；实施后替换为 `openVehicleEditor`。
+- 两个入口均已替换为 `openVehicleEditor`，保存后刷新车库并滚动到该车。
+- 页面与保存流程的完整方案见 [添加 / 编辑爱车技术方案](vehicle-editor.md)。
 
 ### 9.5 系统返回
 

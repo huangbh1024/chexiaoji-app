@@ -19,4 +19,10 @@ abstract class LedgerRepository {
 
   /// 单车全历史统计：总额、笔数、能耗笔数与首末记录时间。
   Future<VehicleLedgerStats> fetchVehicleStats(String vehicleId);
+
+  /// 该车最近一次带里程读数的表显里程；无记录返回 null。
+  Future<int?> latestOdometerForVehicle(String vehicleId);
+
+  /// 该车最近一次「保养」类别流水的表显里程；无记录返回 null。
+  Future<int?> latestMaintenanceOdometer(String vehicleId);
 }

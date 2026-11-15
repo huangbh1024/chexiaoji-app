@@ -156,4 +156,135 @@ void main() {
       );
     });
   });
+
+  _editorStoreTests();
+}
+
+void _editorStoreTests() {
+  group('VehicleStore 编辑器写入口', () {
+    test('新增分配排序；空车库自动成为主驾', () {
+      final store = VehicleStore(records: const []);
+      final created = store.add(record('new', 0), makePrimary: false);
+      expect(created.sortOrder, 0);
+      expect(store.primaryVehicleId, 'new');
+    });
+
+    test('新增尊重 makePrimary；非首辆不抢占主驾', () {
+      final store = VehicleStore(
+        records: [record('a', 0)],
+        primaryVehicleId: 'a',
+      );
+      store.add(record('b', 1));
+      expect(store.primaryVehicleId, 'a');
+      store.add(record('c', 2), makePrimary: true);
+      expect(store.primaryVehicleId, 'c');
+    });
+
+    test('车牌重复（含归档车辆）抛 duplicatePlate', () {
+      final store = VehicleStore(
+        records: [record('a', 0)],
+        primaryVehicleId: 'a',
+      );
+      expect(
+        () => store.add(record('a', 1)),
+        throwsA(
+          isA<VehicleStoreException>().having(
+            (error) => error.error,
+            'error',
+            VehicleStoreError.duplicatePlate,
+          ),
+        ),
+      );
+      store.archive('a');
+      expect(
+        () => store.add(record('a', 2)),
+        throwsA(isA<VehicleStoreException>()),
+      );
+    });
+
+    test('在库车辆上限为 10', () {
+      final records = [
+        for (var index = 0; index < VehicleStore.maxActiveVehicles; index++)
+          record('v$index', index),
+      ];
+      final store = VehicleStore(records: records, primaryVehicleId: 'v0');
+      expect(
+        () => store.add(record('overflow', 99)),
+        throwsA(
+          isA<VehicleStoreException>().having(
+            (error) => error.error,
+            'error',
+            VehicleStoreError.limitReached,
+          ),
+        ),
+      );
+    });
+
+    test('更新保留排序 / SOH / 年检，并可接管主驾', () {
+      final store = VehicleStore(
+        records: [
+          VehicleRecord(
+            vehicle: record('a', 0).vehicle,
+            specLabel: '旧配置',
+            sortOrder: 4,
+            batteryHealthPercent: 95,
+            inspectionExpiry: DateTime(2027, 1, 1),
+          ),
+          record('b', 1),
+        ],
+        primaryVehicleId: 'a',
+      );
+      final updated = VehicleRecord(
+        vehicle: const Vehicle(
+          id: 'a',
+          name: '新名称',
+          plate: '粤B·A0001',
+          powertrain: PowertrainType.ice,
+          powertrainLabel: '纯燃油',
+          odometerKm: 2000,
+        ),
+        specLabel: '新配置',
+        sortOrder: 0,
+        nickname: '小白',
+        nextMaintenanceKm: 5000,
+        insuranceExpiry: DateTime(2026, 12, 1),
+      );
+      final result = store.update('a', updated, makePrimary: true);
+      expect(result.sortOrder, 4);
+      expect(result.batteryHealthPercent, 95);
+      expect(result.inspectionExpiry, DateTime(2027, 1, 1));
+      expect(result.nickname, '小白');
+      expect(result.nextMaintenanceKm, 5000);
+      expect(store.primaryVehicleId, 'a');
+    });
+
+    test('更新车牌与他人冲突时拒绝', () {
+      final store = VehicleStore(
+        records: [record('a', 0), record('b', 1)],
+        primaryVehicleId: 'a',
+      );
+      final updated = VehicleRecord(
+        vehicle: const Vehicle(
+          id: 'a',
+          name: 'A',
+          plate: '粤B·b',
+          powertrain: PowertrainType.ev,
+          powertrainLabel: '纯电',
+          odometerKm: 1000,
+        ),
+        specLabel: '',
+        sortOrder: 0,
+      );
+      expect(
+        () => store.update('a', updated),
+        throwsA(
+          isA<VehicleStoreException>().having(
+            (error) => error.error,
+            'error',
+            VehicleStoreError.duplicatePlate,
+          ),
+        ),
+      );
+    });
+  });
 }

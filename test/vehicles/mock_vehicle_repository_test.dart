@@ -6,11 +6,13 @@ import 'package:chexiaoji_app/features/vehicles/data/mock_vehicle_repository.dar
 import 'package:chexiaoji_app/features/vehicles/data/vehicle_repository.dart';
 import 'package:chexiaoji_app/features/vehicles/data/vehicle_seed_data.dart';
 import 'package:chexiaoji_app/features/vehicles/data/vehicle_store.dart';
+import 'package:chexiaoji_app/features/vehicles/domain/vehicle_editor_models.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 final _now = DateTime(2026, 11, 15);
 
 void main() {
+  _editorRepositoryTests();
   late VehicleStore store;
   late MockLedgerRepository ledger;
   late MockHomeRepository home;
@@ -224,5 +226,98 @@ void main() {
         ),
       ),
     );
+  });
+}
+
+void _editorRepositoryTests() {
+  group('MockVehicleRepository 编辑器', () {
+    late VehicleStore store;
+    late MockVehicleRepository repository;
+
+    setUp(() {
+      store = seededVehicleStore(now: _now);
+      final ledger = MockLedgerRepository(delay: Duration.zero);
+      repository = MockVehicleRepository(
+        store: store,
+        home: MockHomeRepository(ledger: ledger, store: store),
+        ledger: ledger,
+        now: () => _now,
+        delay: Duration.zero,
+      );
+    });
+
+    test('编辑快照包含草稿、主驾、继任与最近里程', () async {
+      final snapshot = await repository.fetchVehicleEditor('byd-han-ev');
+      expect(snapshot.vehicleId, 'byd-han-ev');
+      expect(snapshot.draft.name, '比亚迪 汉 EV');
+      expect(snapshot.draft.province, '粤');
+      expect(snapshot.draft.plateBody, 'BD82K6');
+      expect(snapshot.draft.isGreenPlate, isFalse);
+      expect(snapshot.isPrimary, isTrue);
+      expect(snapshot.successorName, '丰田 凯美瑞 双擎');
+      expect(snapshot.isOnlyActiveVehicle, isFalse);
+      expect(snapshot.activeVehicleCount, 4);
+    });
+
+    test('新增车辆写回车库并成为主驾', () async {
+      final result = await repository.createVehicle(
+        const VehicleEditorDraft(
+          name: '测试新车',
+          province: '粤',
+          plateBody: 'BDF8932',
+          odometerKm: 1000,
+          powertrain: PowertrainType.ev,
+          batteryCapacityKwh: 60,
+          officialConsumption: 13.5,
+          makePrimary: true,
+        ),
+      );
+      expect(result.created, isTrue);
+      expect(store.active.length, 5);
+      expect(store.primaryVehicleId, result.vehicleId);
+      final record = store.byId(result.vehicleId)!;
+      expect(record.vehicle.name, '测试新车');
+      expect(record.vehicle.plate, '粤B·DF8932');
+      expect(record.vehicle.batteryCapacityKwh, 60);
+    });
+
+    test('新增重复车牌抛 duplicatePlate', () async {
+      await expectLater(
+        repository.createVehicle(
+          const VehicleEditorDraft(
+            name: '重复车',
+            province: '粤',
+            plateBody: 'BD82K6',
+            isGreenPlate: false,
+            odometerKm: 1000,
+          ),
+        ),
+        throwsA(
+          isA<VehicleOperationException>().having(
+            (error) => error.code,
+            'code',
+            VehicleErrorCode.duplicatePlate,
+          ),
+        ),
+      );
+    });
+
+    test('更新档案保留 SOH 并写入主驾', () async {
+      final snapshot = await repository.fetchVehicleEditor('toyota-camry-hev');
+      await repository.updateVehicle(
+        'toyota-camry-hev',
+        snapshot.draft.copyWith(
+          name: '丰田 凯美瑞 双擎 改',
+          odometerKm: 47000,
+          nickname: '小凯',
+          makePrimary: true,
+        ),
+      );
+      final record = store.byId('toyota-camry-hev')!;
+      expect(record.vehicle.name, '丰田 凯美瑞 双擎 改');
+      expect(record.vehicle.odometerKm, 47000);
+      expect(record.nickname, '小凯');
+      expect(store.primaryVehicleId, 'toyota-camry-hev');
+    });
   });
 }

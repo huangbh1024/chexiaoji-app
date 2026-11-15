@@ -32,6 +32,7 @@ class Consumption {
     required this.primarySparkline,
     this.secondary,
     this.secondarySparkline = const <double>[],
+    this.hasData = true,
   });
 
   final String label;
@@ -40,6 +41,9 @@ class Consumption {
   final EnergyValue? secondary;
   final List<double> primarySparkline;
   final List<double> secondarySparkline;
+
+  /// 是否有真实能耗读数；新建车辆无流水时为 false。
+  final bool hasData;
 }
 
 class Maintenance {
@@ -49,6 +53,7 @@ class Maintenance {
     required this.progressPercent,
     required this.status,
     this.remainingDays,
+    this.hasProgress = true,
   });
 
   final bool enabled;
@@ -58,6 +63,9 @@ class Maintenance {
   /// 0–100，表示保养周期已使用的比例。
   final int progressPercent;
   final MaintenanceStatus status;
+
+  /// 是否有足够数据绘制进度环；仅设置下次保养里程时为 false。
+  final bool hasProgress;
 
   bool get isOverdue => status == MaintenanceStatus.overdue || remainingKm < 0;
 

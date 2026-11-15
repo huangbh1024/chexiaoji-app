@@ -1,6 +1,8 @@
 import '../../home/data/home_repository.dart';
 import '../../home/domain/home_models.dart';
 import '../../ledger/data/ledger_repository.dart';
+import '../domain/vehicle_editor_models.dart';
+import '../domain/vehicle_editor_presenter.dart';
 import '../domain/vehicle_models.dart';
 import '../domain/vehicle_presenter.dart';
 import 'vehicle_repository.dart';
@@ -13,13 +15,16 @@ class MockVehicleRepository implements VehicleRepository {
     required this.home,
     required this.ledger,
     DateTime Function()? now,
+    String Function()? idGenerator,
     this.delay = const Duration(milliseconds: 140),
-  }) : _now = now ?? DateTime.now;
+  }) : _now = now ?? DateTime.now,
+       _idGenerator = idGenerator ?? _defaultId;
 
   final VehicleStore store;
   final HomeRepository home;
   final LedgerRepository ledger;
   final DateTime Function() _now;
+  final String Function() _idGenerator;
   final Duration delay;
 
   @override
@@ -69,6 +74,7 @@ class MockVehicleRepository implements VehicleRepository {
           recordCount: recordCounts[index],
           consumption: dashboards[index].consumption,
           maintenance: dashboards[index].maintenance,
+          nickname: records[index].nickname,
           batteryHealthPercent: records[index].batteryHealthPercent,
           insuranceExpiry: records[index].insuranceExpiry,
           inspectionExpiry: records[index].inspectionExpiry,
@@ -250,6 +256,118 @@ class MockVehicleRepository implements VehicleRepository {
     }
   }
 
+  @override
+  Future<VehicleEditorSnapshot> fetchVehicleEditor(String vehicleId) async {
+    await Future<void>.delayed(delay);
+    final record = store.byId(vehicleId);
+    if (record == null) {
+      throw const VehicleOperationException(VehicleErrorCode.notFound);
+    }
+    if (record.isArchived) {
+      throw const VehicleOperationException(VehicleErrorCode.notArchived);
+    }
+    final latest = await ledger.latestOdometerForVehicle(vehicleId);
+    final isPrimary = store.primaryVehicleId == vehicleId;
+    final successor = isPrimary ? store.successorOf(vehicleId) : null;
+    return VehicleEditorSnapshot(
+      vehicleId: vehicleId,
+      draft: VehicleEditorPresenter.draftOf(
+        record,
+        latestOdometerKm: latest,
+        isPrimary: isPrimary,
+      ),
+      isPrimary: isPrimary,
+      activeVehicleCount: store.active.length,
+      maxActiveVehicles: VehicleStore.maxActiveVehicles,
+      latestOdometerKm: latest,
+      version: 1,
+      successorName: successor == null
+          ? null
+          : store.byId(successor)?.vehicle.name,
+      isOnlyActiveVehicle: store.active.length == 1,
+    );
+  }
+
+  @override
+  Future<VehicleEditorResult> createVehicle(VehicleEditorDraft draft) async {
+    await Future<void>.delayed(delay);
+    if (store.active.length >= VehicleStore.maxActiveVehicles) {
+      throw const VehicleOperationException(VehicleErrorCode.limitReached);
+    }
+    final conflict = store.byPlate(draft.plate);
+    if (conflict != null) {
+      throw VehicleOperationException(
+        VehicleErrorCode.duplicatePlate,
+        conflict.vehicle.name,
+      );
+    }
+    final id = _idGenerator();
+    final vehicle = VehicleEditorPresenter.buildVehicle(
+      draft: draft,
+      id: id,
+      badge: _badgeOf(draft),
+    );
+    final record = VehicleEditorPresenter.buildRecord(
+      vehicle: vehicle,
+      draft: draft,
+      sortOrder: store.nextSortOrder,
+    );
+    final created = store.add(
+      record,
+      makePrimary: draft.makePrimary || store.active.isEmpty,
+    );
+    return VehicleEditorResult(vehicleId: created.id, created: true);
+  }
+
+  @override
+  Future<VehicleEditorResult> updateVehicle(
+    String vehicleId,
+    VehicleEditorDraft draft, {
+    int? version,
+  }) async {
+    await Future<void>.delayed(delay);
+    final existing = store.byId(vehicleId);
+    if (existing == null) {
+      throw const VehicleOperationException(VehicleErrorCode.notFound);
+    }
+    if (existing.isArchived) {
+      throw const VehicleOperationException(VehicleErrorCode.notArchived);
+    }
+    final conflict = store.byPlate(draft.plate);
+    if (conflict != null && conflict.id != vehicleId) {
+      throw VehicleOperationException(
+        VehicleErrorCode.duplicatePlate,
+        conflict.vehicle.name,
+      );
+    }
+    final vehicle = VehicleEditorPresenter.buildVehicle(
+      draft: draft,
+      id: vehicleId,
+      badge: _badgeOf(draft, fallback: existing.vehicle.badge),
+    );
+    final record = VehicleEditorPresenter.buildRecord(
+      vehicle: vehicle,
+      draft: draft,
+      sortOrder: existing.sortOrder,
+      existing: existing,
+    );
+    store.update(vehicleId, record, makePrimary: draft.makePrimary);
+    return VehicleEditorResult(vehicleId: vehicleId, created: false);
+  }
+
+  String? _badgeOf(VehicleEditorDraft draft, {String? fallback}) {
+    if (draft.defaultFuelGrade != null) {
+      return '${draft.defaultFuelGrade}号汽油';
+    }
+    if (fallback == null || fallback.contains('号汽油')) {
+      return null;
+    }
+    return fallback;
+  }
+
+  static String _defaultId() =>
+      'veh-${DateTime.now().microsecondsSinceEpoch.toRadixString(36)}';
+
   VehicleOperationException _mapStoreError(VehicleStoreException error) {
     return switch (error.error) {
       VehicleStoreError.notFound || VehicleStoreError.archived =>
@@ -259,6 +377,12 @@ class MockVehicleRepository implements VehicleRepository {
       ),
       VehicleStoreError.isPrimary => const VehicleOperationException(
         VehicleErrorCode.isPrimary,
+      ),
+      VehicleStoreError.duplicatePlate => const VehicleOperationException(
+        VehicleErrorCode.duplicatePlate,
+      ),
+      VehicleStoreError.limitReached => const VehicleOperationException(
+        VehicleErrorCode.limitReached,
       ),
     };
   }

@@ -3,6 +3,7 @@ import 'package:material_ui/material_ui.dart';
 import '../../../../app/theme/app_colors.dart';
 import '../../../../app/theme/app_typography.dart';
 import '../../../../core/presentation/category_style.dart';
+import '../../../../core/domain/vehicle.dart';
 import '../../domain/vehicle_models.dart';
 import '../../domain/vehicle_presenter.dart';
 import 'vehicle_sheet_shell.dart';
@@ -20,7 +21,7 @@ Future<bool?> showSetPrimarySheet(
 
 Future<bool?> showArchiveVehicleSheet(
   BuildContext context,
-  ManagedVehicle vehicle, {
+  Vehicle vehicle, {
   required String body,
   required String confirmLabel,
   required Future<String?> Function() onConfirm,
@@ -163,7 +164,7 @@ class _ArchiveVehicleSheet extends StatefulWidget {
     required this.onConfirm,
   });
 
-  final ManagedVehicle vehicle;
+  final Vehicle vehicle;
   final String body;
   final String confirmLabel;
   final Future<String?> Function() onConfirm;
@@ -212,7 +213,7 @@ class _ArchiveVehicleSheetState extends State<_ArchiveVehicleSheet> {
         ),
         const SizedBox(height: 12),
         Text(
-          '归档「${widget.vehicle.vehicle.name}」？',
+          '归档「${widget.vehicle.name}」？',
           textAlign: TextAlign.center,
           style: AppTypography.headlineSm.copyWith(color: palette.onSurface),
         ),

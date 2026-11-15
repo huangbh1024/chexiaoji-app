@@ -56,33 +56,46 @@ class MockHomeRepository implements HomeRepository {
 
   @override
   Future<HomeDashboard> fetchDashboard(String vehicleId) async {
-    final car = _carById(vehicleId);
-    return HomeDashboard(
-      vehicle: car.vehicle,
-      summary: car.summary,
-      consumption: car.consumption,
-      maintenance: car.maintenance,
+    final base = _carByIdOrNull(vehicleId);
+    final record = store?.byId(vehicleId);
+    if (base == null) {
+      if (record == null) {
+        throw StateError('Unknown vehicle: $vehicleId');
+      }
+      return _withMaintenanceOverride(_emptyDashboard(record), record);
+    }
+    final dashboard = HomeDashboard(
+      vehicle: record?.vehicle ?? base.vehicle,
+      summary: base.summary,
+      consumption: base.consumption,
+      maintenance: base.maintenance,
     );
+    return _withMaintenanceOverride(dashboard, record);
   }
 
   @override
-  Future<Breakdown> fetchBreakdown(String vehicleId) async =>
-      _carById(vehicleId).breakdown;
+  Future<Breakdown> fetchBreakdown(String vehicleId) async {
+    final car = _carByIdOrNull(vehicleId);
+    if (car == null) {
+      return const Breakdown(totalCents: 0, count: 0, categories: []);
+    }
+    return car.breakdown;
+  }
 
   @override
   Future<List<RecordItem>> fetchRecords(String vehicleId) async {
     final ledger = this.ledger;
     if (ledger == null) {
-      return _carById(vehicleId).records.take(5).toList(growable: false);
+      final car = _carByIdOrNull(vehicleId);
+      return car == null
+          ? const <RecordItem>[]
+          : car.records.take(5).toList(growable: false);
     }
     final page = await ledger.fetchRecords(
       LedgerQuery(month: monthStart(DateTime.now()), vehicleId: vehicleId),
       limit: 20,
     );
-    return page.items
-        .take(5)
-        .map(_toRecordItem)
-        .toList(growable: false);
+    return page.items.take(5).map(_toRecordItem).toList(growable: false);
   }
 
   RecordItem _toRecordItem(LedgerRecord record) {
@@ -101,12 +114,90 @@ class MockHomeRepository implements HomeRepository {
 
   @override
   Future<TrendData> fetchTrend(String vehicleId, TrendRange range) async {
-    final car = _carById(vehicleId);
+    final car = _carByIdOrNull(vehicleId);
+    if (car == null) {
+      return TrendData(
+        range: range,
+        points: const [],
+        totalCents: 0,
+        previousTotalCents: 0,
+      );
+    }
     return _buildTrend(car, range);
   }
 
-  _CarMock _carById(String vehicleId) =>
-      _cars.firstWhere((car) => car.vehicle.id == vehicleId);
+  _CarMock? _carByIdOrNull(String vehicleId) {
+    for (final car in _cars) {
+      if (car.vehicle.id == vehicleId) {
+        return car;
+      }
+    }
+    return null;
+  }
+
+  Future<HomeDashboard> _withMaintenanceOverride(
+    HomeDashboard dashboard,
+    VehicleRecord? record,
+  ) async {
+    final next = record?.nextMaintenanceKm;
+    if (record == null || next == null) {
+      return dashboard;
+    }
+    final current =
+        odometerResolver?.call(record.id) ?? record.vehicle.odometerKm;
+    final remaining = next - current;
+    final last = await ledger?.latestMaintenanceOdometer(record.id);
+    final hasProgress = last != null && next > last;
+    final progress = hasProgress
+        ? (((current - last) / (next - last)) * 100).clamp(0, 100).round()
+        : 0;
+    return HomeDashboard(
+      vehicle: dashboard.vehicle,
+      summary: dashboard.summary,
+      consumption: dashboard.consumption,
+      maintenance: Maintenance(
+        enabled: true,
+        remainingKm: remaining,
+        progressPercent: progress,
+        status: remaining < 0
+            ? MaintenanceStatus.overdue
+            : (remaining <= 1000
+                  ? MaintenanceStatus.warning
+                  : MaintenanceStatus.normal),
+        hasProgress: hasProgress,
+      ),
+    );
+  }
+}
+
+HomeDashboard _emptyDashboard(VehicleRecord record) {
+  final electric =
+      record.vehicle.powertrain == PowertrainType.ev ||
+      record.vehicle.powertrain == PowertrainType.phev;
+  return HomeDashboard(
+    vehicle: record.vehicle,
+    summary: const HomeSummary(
+      costPerKm: 0,
+      monthSpendCents: 0,
+      monthMileageKm: 0,
+      energyCostPerKm: 0,
+      momTrend: TrendDirection.none,
+    ),
+    consumption: Consumption(
+      label: electric ? '动力电耗' : '综合油耗',
+      typeLabel: record.vehicle.powertrainLabel,
+      primary: EnergyValue(value: 0, unit: electric ? 'kWh/百公里' : 'L/百公里'),
+      primarySparkline: const [],
+      hasData: false,
+    ),
+    maintenance: const Maintenance(
+      enabled: false,
+      remainingKm: 0,
+      progressPercent: 0,
+      status: MaintenanceStatus.normal,
+      hasProgress: false,
+    ),
+  );
 }
 
 class _CarMock {
