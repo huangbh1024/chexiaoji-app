@@ -62,7 +62,7 @@ class _AppTabShellState extends ConsumerState<AppTabShell> {
   }
 
   Future<void> _openExpenseEntry() async {
-    final vehicleId = ref.read(selectedVehicleIdProvider);
+    final vehicleId = ref.read(effectiveVehicleIdProvider);
     await openExpenseEntry(
       context,
       args: ExpenseEntryArgs.create(initialVehicleId: vehicleId),

@@ -16,7 +16,10 @@ class MaintenanceCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final vehicleId = ref.watch(selectedVehicleIdProvider);
+    final vehicleId = ref.watch(effectiveVehicleIdProvider);
+    if (vehicleId == null) {
+      return const SizedBox.shrink();
+    }
     final dashboard = ref.watch(homeDashboardProvider(vehicleId));
 
     return dashboard.when(

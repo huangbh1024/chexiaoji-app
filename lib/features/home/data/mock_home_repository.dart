@@ -1,26 +1,40 @@
 import '../../../core/format/formatters.dart';
 import '../../ledger/domain/ledger_models.dart';
+import '../../vehicles/data/vehicle_store.dart';
 import '../../ledger/domain/ledger_presenter.dart';
 import '../../ledger/data/ledger_repository.dart';
 import '../domain/home_models.dart';
 import 'home_repository.dart';
 
 class MockHomeRepository implements HomeRepository {
-  MockHomeRepository({this.ledger, this.odometerResolver});
+  MockHomeRepository({this.ledger, this.odometerResolver, this.store});
 
   final LedgerRepository? ledger;
 
   /// 记账页新增记录后，用账单里的最新读数刷新车辆当前里程。
   final int? Function(String vehicleId)? odometerResolver;
 
-  @override
-  String get defaultVehicleId => _cars.first.vehicle.id;
+  /// 车库状态的唯一来源；为空时回退到内置演示车辆（测试 / 旧构造）。
+  final VehicleStore? store;
 
   @override
-  Future<List<Vehicle>> fetchVehicles() async => [
-    for (final car in _cars)
-      _withOdometer(car.vehicle, odometerResolver?.call(car.vehicle.id)),
-  ];
+  String? get defaultVehicleId =>
+      store?.primaryVehicleId ?? _cars.first.vehicle.id;
+
+  @override
+  Future<List<Vehicle>> fetchVehicles() async {
+    final store = this.store;
+    if (store == null) {
+      return [
+        for (final car in _cars)
+          _withOdometer(car.vehicle, odometerResolver?.call(car.vehicle.id)),
+      ];
+    }
+    return [
+      for (final record in store.active)
+        _withOdometer(record.vehicle, odometerResolver?.call(record.id)),
+    ];
+  }
 
   Vehicle _withOdometer(Vehicle vehicle, int? latestKm) {
     if (latestKm == null || latestKm <= vehicle.odometerKm) {

@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../ledger/domain/providers.dart';
+import '../../vehicles/data/vehicle_store_provider.dart';
 import '../data/home_repository.dart';
 import '../data/mock_home_repository.dart';
 import 'home_models.dart';
@@ -11,6 +12,7 @@ final homeRepositoryProvider = Provider<HomeRepository>(
   (ref) => MockHomeRepository(
     ledger: ref.watch(ledgerRepositoryProvider),
     odometerResolver: ref.watch(mockLedgerRepositoryProvider).latestOdometer,
+    store: ref.watch(vehicleStoreProvider),
   ),
 );
 
@@ -18,23 +20,40 @@ final vehiclesProvider = FutureProvider<List<Vehicle>>((ref) {
   return ref.watch(homeRepositoryProvider).fetchVehicles();
 });
 
-/// 当前选中的车辆；首次进入选中默认车辆。
+/// 当前选中的车辆；空车库时为 null。
 final selectedVehicleIdProvider =
-    NotifierProvider<SelectedVehicleIdNotifier, String>(
+    NotifierProvider<SelectedVehicleIdNotifier, String?>(
       SelectedVehicleIdNotifier.new,
     );
 
-class SelectedVehicleIdNotifier extends Notifier<String> {
+class SelectedVehicleIdNotifier extends Notifier<String?> {
   @override
-  String build() => ref.watch(homeRepositoryProvider).defaultVehicleId;
+  String? build() => ref.watch(vehicleStoreProvider).primaryVehicleId;
 
-  void select(String vehicleId) {
+  void select(String? vehicleId) {
     if (state == vehicleId) {
       return;
     }
     state = vehicleId;
   }
 }
+
+/// 当前可用的车辆 id：优先用户选择，其次第一辆在库车，空车库为 null。
+final effectiveVehicleIdProvider = Provider<String?>((ref) {
+  final vehiclesAsync = ref.watch(vehiclesProvider);
+  final selected = ref.watch(selectedVehicleIdProvider);
+  if (!vehiclesAsync.hasValue) {
+    // 加载中 / 失败时沿用默认主驾，让各模块展示骨架或自己的错误态。
+    return selected;
+  }
+  final vehicles = vehiclesAsync.value ?? const <Vehicle>[];
+  if (vehicles.isEmpty) {
+    return null;
+  }
+  return vehicles.any((vehicle) => vehicle.id == selected)
+      ? selected
+      : vehicles.first.id;
+});
 
 /// Hero / 能耗 / 保养数据。
 final homeDashboardProvider = FutureProvider.autoDispose

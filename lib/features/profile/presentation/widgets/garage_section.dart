@@ -12,6 +12,7 @@ import '../../../../core/widgets/empty_state.dart';
 import '../../../../core/widgets/section_error.dart';
 import '../../../../core/widgets/skeleton_box.dart';
 import '../../../home/domain/providers.dart';
+import '../../../vehicles/presentation/vehicle_management_routes.dart';
 import '../../domain/garage_aggregation.dart';
 import '../../domain/profile_presenter.dart';
 import '../../domain/providers.dart';
@@ -72,7 +73,7 @@ class GarageSection extends ConsumerWidget {
               label: '管理爱车',
               child: InkWell(
                 key: const Key('garage-manage'),
-                onTap: () => showAppToast(context, '车辆管理页待接入'),
+                onTap: () => openVehicleManagement(context),
                 borderRadius: BorderRadius.circular(8),
                 child: Padding(
                   padding: const EdgeInsets.symmetric(

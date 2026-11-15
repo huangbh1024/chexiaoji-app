@@ -13,4 +13,7 @@ abstract class LedgerRepository {
 
   /// 账号生命周期统计：全部车辆、全部历史、未删除记录。
   Future<LedgerLifetimeStats> fetchLifetimeStats();
+
+  /// 账号生命周期内、未删除的记录数；传入 [vehicleId] 时只统计该车。
+  Future<int> countRecords({String? vehicleId});
 }
