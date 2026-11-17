@@ -15,8 +15,15 @@ if (keystorePropertiesFile.exists()) {
     FileInputStream(keystorePropertiesFile).use { keystoreProperties.load(it) }
 }
 
+// 应用对外标识。正式域名确定后改 android/gradle.properties 的
+// chexiaojiApplicationId，或用 -PchexiaojiApplicationId=... 覆盖；
+// namespace / Kotlin 包名是内部代码标识，可以保持不变。
+val appApplicationId = (findProperty("chexiaojiApplicationId") as String?)
+    ?.takeIf { it.isNotBlank() }
+    ?: "top.huangbh.chexiaoji_app"
+
 android {
-    namespace = "cn.taqu.chexiaoji_app"
+    namespace = "top.huangbh.chexiaoji_app"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -27,7 +34,7 @@ android {
 
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "cn.taqu.chexiaoji_app"
+        applicationId = appApplicationId
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion

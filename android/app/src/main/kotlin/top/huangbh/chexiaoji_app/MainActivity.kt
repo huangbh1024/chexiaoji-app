@@ -1,4 +1,4 @@
-package cn.taqu.chexiaoji_app
+package top.huangbh.chexiaoji_app
 
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -14,7 +14,7 @@ import java.security.MessageDigest
 
 class MainActivity : FlutterActivity() {
     private companion object {
-        const val UPDATE_CHANNEL = "cn.taqu.chexiaoji_app/app_update"
+        const val UPDATE_CHANNEL = "chexiaoji/app_update"
         const val FILE_PROVIDER_SUFFIX = ".fileprovider"
     }
 

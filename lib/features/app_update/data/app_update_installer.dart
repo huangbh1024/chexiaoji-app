@@ -44,9 +44,7 @@ abstract class AppUpdateInstaller {
 class MethodChannelAppUpdateInstaller implements AppUpdateInstaller {
   const MethodChannelAppUpdateInstaller();
 
-  static const MethodChannel _channel = MethodChannel(
-    'cn.taqu.chexiaoji_app/app_update',
-  );
+  static const MethodChannel _channel = MethodChannel('chexiaoji/app_update');
 
   @override
   bool get isSupported => io.Platform.isAndroid;
