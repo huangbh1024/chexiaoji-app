@@ -105,13 +105,23 @@ class MockVehicleRepository implements VehicleRepository {
 
   Future<ArchivedVehicleSummary> _archivedSummary(VehicleRecord record) async {
     final stats = await ledger.fetchVehicleStats(record.id);
-    EnergyValue? averageConsumption;
-    try {
-      final dashboard = await home.fetchDashboard(record.id);
-      averageConsumption = dashboard.consumption.primary;
-    } catch (_) {
-      // 演示数据缺失时保留「未录入」，不伪造能耗。
-    }
+    // 历史平均能耗由账本全周期汇总推导；没有读数时保持 null，
+    // 归档卡显示「未录入」而不是 0.0。
+    final electric =
+        record.vehicle.powertrain == PowertrainType.ev ||
+        record.vehicle.powertrain == PowertrainType.phev;
+    final value = stats.distanceKm <= 0
+        ? null
+        : electric
+        ? (stats.energyKwh > 0
+              ? stats.energyKwh / stats.distanceKm * 100
+              : null)
+        : (stats.fuelLiters > 0
+              ? stats.fuelLiters / stats.distanceKm * 100
+              : null);
+    final averageConsumption = value == null
+        ? null
+        : EnergyValue(value: value, unit: electric ? 'kWh/百公里' : 'L/百公里');
     return ArchivedVehicleSummary(
       vehicle: record.vehicle,
       specLabel: record.specLabel,

@@ -2,6 +2,8 @@ import 'package:chexiaoji_app/core/domain/enums.dart';
 import 'package:chexiaoji_app/core/domain/vehicle.dart';
 import 'package:chexiaoji_app/features/home/data/mock_home_repository.dart';
 import 'package:chexiaoji_app/features/ledger/data/mock_ledger_repository.dart';
+import 'package:chexiaoji_app/features/ledger/domain/ledger_analytics.dart';
+import 'package:chexiaoji_app/features/ledger/domain/ledger_models.dart';
 import 'package:chexiaoji_app/features/vehicles/data/mock_vehicle_repository.dart';
 import 'package:chexiaoji_app/features/vehicles/data/vehicle_repository.dart';
 import 'package:chexiaoji_app/features/vehicles/data/vehicle_seed_data.dart';
@@ -33,6 +35,16 @@ void main() {
 
   test('车库快照包含 4 辆车、主驾置顶与汇总', () async {
     final garage = await repository.fetchGarage();
+    final month = DateTime.now();
+    final monthTotal = totalCentsOf(
+      ledger.recordsBetween(
+        monthStart(month),
+        DateTime(
+          month.year,
+          month.month + 1,
+        ).subtract(const Duration(milliseconds: 1)),
+      ),
+    );
 
     expect(garage.vehicles.length, 4);
     expect(garage.vehicles.first.id, 'byd-han-ev');
@@ -41,7 +53,7 @@ void main() {
     expect(garage.primaryVehicleId, 'byd-han-ev');
     expect(garage.summary.vehicleCount, 4);
     expect(garage.summary.totalOdometerKm, 18426 + 46210 + 31520 + 58940);
-    expect(garage.summary.monthSpendCents, 128600 + 145000 + 112000 + 238000);
+    expect(garage.summary.monthSpendCents, monthTotal);
     expect(garage.vehicles.first.recordCount, greaterThan(0));
   });
 
@@ -101,6 +113,38 @@ void main() {
         ),
       ),
     );
+  });
+
+  test('归档车辆无能耗读数时显示未录入而不是 0', () async {
+    final emptyStore = VehicleStore(
+      records: [
+        VehicleRecord(
+          vehicle: const Vehicle(
+            id: 'archived-ev',
+            name: '归档测试车',
+            plate: '粤B·00001',
+            powertrain: PowertrainType.ev,
+            powertrainLabel: '纯电',
+            odometerKm: 1000,
+          ),
+          specLabel: '',
+          sortOrder: 0,
+          isArchived: true,
+          archivedAt: _now,
+        ),
+      ],
+    );
+    final emptyHome = MockHomeRepository(ledger: ledger, store: emptyStore);
+    final emptyRepository = MockVehicleRepository(
+      store: emptyStore,
+      home: emptyHome,
+      ledger: ledger,
+      now: () => _now,
+      delay: Duration.zero,
+    );
+
+    final garage = await emptyRepository.fetchArchivedGarage();
+    expect(garage.vehicles.single.averageConsumption, isNull);
   });
 
   test('无流水车辆可删除，唯一车辆删除后主驾为空', () async {

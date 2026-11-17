@@ -1,5 +1,6 @@
 import 'package:material_ui/material_ui.dart';
 
+import '../../ledger/domain/ledger_models.dart';
 import 'expense_entry_detail.dart';
 import 'expense_entry_math.dart';
 import 'expense_entry_models.dart';
@@ -62,10 +63,14 @@ EntryValidation validateDraft(ExpenseEntryDraft draft, {DateTime? now}) {
       message: '发生时间不能晚于现在',
     );
   }
-  if (draft.occurredAt.year < 2000) {
-    return const EntryValidation(
+  final earliest = DateTime(
+    current.year,
+    current.month - (ledgerHistoryMonths - 1),
+  );
+  if (draft.occurredAt.isBefore(earliest)) {
+    return EntryValidation(
       field: EntryField.occurredAt,
-      message: '发生时间不能早于 2000 年',
+      message: '发生时间不能早于 ${earliest.year}年${earliest.month}月',
     );
   }
   final odometer = draft.odometerKm;

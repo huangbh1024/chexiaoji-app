@@ -189,6 +189,41 @@ void main() {
       expect(other.amountCents, 3000);
     });
 
+    test('超过 6 类且「其他」本身靠前时不重复', () {
+      final records = [
+        for (final (category, amount) in [
+          (ExpenseCategory.other, 10000),
+          (ExpenseCategory.charging, 6000),
+          (ExpenseCategory.fuel, 5000),
+          (ExpenseCategory.maintenance, 4000),
+          (ExpenseCategory.parking, 3000),
+          (ExpenseCategory.toll, 2000),
+          (ExpenseCategory.carWash, 1000),
+        ])
+          statsRecord(
+            id: category.name,
+            category: category,
+            amountCents: amount,
+          ),
+      ];
+
+      final breakdown = buildStatsBreakdown(records);
+      final others = breakdown.categories
+          .where((slice) => slice.category == ExpenseCategory.other)
+          .toList();
+
+      expect(others, hasLength(1));
+      expect(breakdown.categories.length, lessThanOrEqualTo(6));
+      expect(
+        breakdown.categories.fold(0, (sum, slice) => sum + slice.percent),
+        100,
+      );
+      expect(
+        breakdown.categories.fold(0, (sum, slice) => sum + slice.amountCents),
+        breakdown.totalCents,
+      );
+    });
+
     test('小于 2% 的分类并入其他', () {
       final records = [
         statsRecord(

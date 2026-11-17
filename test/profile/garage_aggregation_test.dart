@@ -124,7 +124,7 @@ void main() {
       expect(snapshot.badge, '纯电');
       expect(snapshot.plateText, '粤B·D82K6');
       expect(snapshot.title, '比亚迪 汉 EV');
-      expect(snapshot.subtitle, '累计能耗 ¥0.18/km');
+      expect(snapshot.subtitle, '本月能耗 ¥0.18/km');
       expect(snapshot.odometerKm, 18426);
       expect(snapshot.monthEnergy.amountCents, 31240);
       expect(snapshot.monthEnergy.kwh, 184);

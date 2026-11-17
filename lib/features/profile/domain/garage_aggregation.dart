@@ -327,7 +327,7 @@ GarageSnapshot _emptySnapshot() {
 String _singleSubtitle(GarageVehicle vehicle, MonthEnergy energy) {
   final cost = vehicle.energyCostPerKmCents;
   if (cost != null && cost > 0) {
-    return '累计能耗 ${formatYuanDetail(cost)}/km';
+    return '本月能耗 ${formatYuanDetail(cost)}/km';
   }
   return '本月已记 ${formatCount(energy.count)} 笔';
 }
