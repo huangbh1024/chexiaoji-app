@@ -1,13 +1,23 @@
 import '../../../core/domain/enums.dart';
+import '../domain/ledger_analytics.dart';
 import '../domain/ledger_models.dart';
 import 'ledger_repository.dart';
 
 /// 本地账单 Mock：按月份确定性生成数据，便于验证月份切换、筛选、
 /// 分页与滚动性能；汇总由同一批记录聚合，保证「总额 = 分组之和」。
 class MockLedgerRepository implements LedgerRepository {
-  MockLedgerRepository({this.delay = const Duration(milliseconds: 160)});
+  MockLedgerRepository({
+    this.delay = const Duration(milliseconds: 160),
+    DateTime Function()? clock,
+  }) : _clock = clock ?? DateTime.now;
 
   final Duration delay;
+
+  /// 可注入的时钟：测试里固定「今天」，生产走系统时间。
+  final DateTime Function() _clock;
+
+  /// Mock 账本可回看的月份数，与账单月份选择器（最近 36 个月）一致。
+  static const windowMonths = ledgerHistoryMonths;
 
   final Map<String, List<LedgerRecord>> _monthCache = {};
   final Map<String, LedgerRecord> _idIndex = {};
@@ -23,10 +33,11 @@ class MockLedgerRepository implements LedgerRepository {
   @override
   Future<LedgerMonthSummary> fetchSummary(LedgerScope scope) async {
     await Future<void>.delayed(delay);
-    final now = DateTime.now();
+    final now = _clock();
     final month = DateTime(scope.month.year, scope.month.month);
     final records = _recordsFor(month)
         .where((record) => !_deletedIds.contains(record.id))
+        .where((record) => _inMonth(record.occurredAt, month))
         .where(
           (record) =>
               scope.vehicleId == null || record.vehicleId == scope.vehicleId,
@@ -105,8 +116,10 @@ class MockLedgerRepository implements LedgerRepository {
     int limit = 30,
   }) async {
     await Future<void>.delayed(delay);
-    final records = _recordsFor(DateTime(query.month.year, query.month.month))
+    final month = DateTime(query.month.year, query.month.month);
+    final records = _recordsFor(month)
         .where((record) => !_deletedIds.contains(record.id))
+        .where((record) => _inMonth(record.occurredAt, month))
         .where(
           (record) =>
               query.vehicleId == null || record.vehicleId == query.vehicleId,
@@ -156,8 +169,8 @@ class MockLedgerRepository implements LedgerRepository {
     if (cached != null) {
       return cached;
     }
-    final now = DateTime.now();
-    final from = DateTime(now.year, now.month - 23);
+    final now = _clock();
+    final from = DateTime(now.year, now.month - (windowMonths - 1));
     final records = recordsBetween(from, now);
     final stats = LedgerLifetimeStats(
       recordCount: records.length,
@@ -169,8 +182,8 @@ class MockLedgerRepository implements LedgerRepository {
 
   @override
   Future<VehicleLedgerStats> fetchVehicleStats(String vehicleId) async {
-    final now = DateTime.now();
-    final from = DateTime(now.year, now.month - 23);
+    final now = _clock();
+    final from = DateTime(now.year, now.month - (windowMonths - 1));
     final records = recordsBetween(
       from,
       now,
@@ -188,6 +201,13 @@ class MockLedgerRepository implements LedgerRepository {
           .length,
       firstRecordAt: records.isEmpty ? null : records.first.occurredAt,
       latestRecordAt: records.isEmpty ? null : records.last.occurredAt,
+      energyKwh: records
+          .where((record) => record.category == ExpenseCategory.charging)
+          .fold(0.0, (sum, record) => sum + (record.metrics.kwh ?? 0)),
+      fuelLiters: records
+          .where((record) => record.category == ExpenseCategory.fuel)
+          .fold(0.0, (sum, record) => sum + (record.metrics.liters ?? 0)),
+      distanceKm: distanceOf(records).km,
     );
   }
 
@@ -198,9 +218,12 @@ class MockLedgerRepository implements LedgerRepository {
 
   @override
   Future<int?> latestMaintenanceOdometer(String vehicleId) async {
-    final now = DateTime.now();
-    final records = recordsBetween(DateTime(now.year, now.month - 23), now)
-        .where(
+    final now = _clock();
+    final records =
+        recordsBetween(
+          DateTime(now.year, now.month - (windowMonths - 1)),
+          now,
+        ).where(
           (record) =>
               record.vehicleId == vehicleId &&
               record.category == ExpenseCategory.maintenance &&
@@ -217,8 +240,8 @@ class MockLedgerRepository implements LedgerRepository {
 
   @override
   Future<int> countRecords({String? vehicleId}) async {
-    final now = DateTime.now();
-    final from = DateTime(now.year, now.month - 23);
+    final now = _clock();
+    final from = DateTime(now.year, now.month - (windowMonths - 1));
     final records = recordsBetween(from, now);
     if (vehicleId == null) {
       return records.length;
@@ -226,7 +249,7 @@ class MockLedgerRepository implements LedgerRepository {
     return records.where((record) => record.vehicleId == vehicleId).length;
   }
 
-  /// 按 id 查找记录：先查索引，再回扫最近 24 个月。
+  /// 按 id 查找记录：先查索引，再回扫账本窗口（36 个月）。
   ///
   /// 已删除的记录返回 null。
   LedgerRecord? recordById(String id) {
@@ -237,8 +260,8 @@ class MockLedgerRepository implements LedgerRepository {
     if (cached != null) {
       return cached;
     }
-    final now = DateTime.now();
-    for (var i = 0; i < 24; i++) {
+    final now = _clock();
+    for (var i = 0; i < windowMonths; i++) {
       final month = DateTime(now.year, now.month - i);
       for (final record in _recordsFor(month)) {
         if (record.id == id) {
@@ -273,11 +296,11 @@ class MockLedgerRepository implements LedgerRepository {
     return List<LedgerRecord>.unmodifiable(result);
   }
 
-  /// 最近 24 个月内最早一条记录的时间；无记录返回 null。
+  /// 账本窗口内最早一条记录的时间；无记录返回 null。
   DateTime? firstRecordAt({String? vehicleId}) {
-    final now = DateTime.now();
+    final now = _clock();
     DateTime? earliest;
-    for (var i = 23; i >= 0; i--) {
+    for (var i = windowMonths - 1; i >= 0; i--) {
       final month = DateTime(now.year, now.month - i);
       for (final record in _recordsFor(month)) {
         if (_deletedIds.contains(record.id)) {
@@ -323,8 +346,8 @@ class MockLedgerRepository implements LedgerRepository {
   /// 该车最新一条带里程读数的记录（按发生时间倒序）。
   LedgerRecord? latestOdometerRecord(String vehicleId) {
     LedgerRecord? latest;
-    final now = DateTime.now();
-    for (var i = 0; i < 24; i++) {
+    final now = _clock();
+    for (var i = 0; i < windowMonths; i++) {
       final month = DateTime(now.year, now.month - i);
       for (final record in _recordsFor(month)) {
         if (_deletedIds.contains(record.id)) {
@@ -356,7 +379,7 @@ class MockLedgerRepository implements LedgerRepository {
     String? excludeRecordId,
   }) {
     LedgerRecord? latest;
-    for (var i = 0; i < 24; i++) {
+    for (var i = 0; i < windowMonths; i++) {
       final month = DateTime(before.year, before.month - i);
       for (final record in _recordsFor(month)) {
         if (_deletedIds.contains(record.id)) {
@@ -383,12 +406,24 @@ class MockLedgerRepository implements LedgerRepository {
   List<LedgerRecord> _recordsFor(DateTime month) {
     final key = _monthKey(month);
     final base = _monthCache.putIfAbsent(key, () => _generate(month));
-    final merged = <String, LedgerRecord>{
-      for (final record in base) record.id: _overrides[record.id] ?? record,
-    };
+    final merged = <String, LedgerRecord>{};
+    for (final record in base) {
+      final override = _overrides[record.id];
+      if (override == null) {
+        merged[record.id] = record;
+      } else if (_inMonth(override.occurredAt, month)) {
+        merged[record.id] = override;
+      }
+    }
+    // 编辑后发生时间可能落到其他月份：按 override 的 occurredAt 重新归档，
+    // 不能继续挂在生成时的月份，否则账单总额与日柱、统计口径会互相矛盾。
+    for (final override in _overrides.values) {
+      if (_inMonth(override.occurredAt, month)) {
+        merged.putIfAbsent(override.id, () => override);
+      }
+    }
     for (final record in _manualRecords) {
-      if (record.occurredAt.year == month.year &&
-          record.occurredAt.month == month.month) {
+      if (_inMonth(record.occurredAt, month)) {
         merged[record.id] = record;
       }
     }
@@ -402,8 +437,11 @@ class MockLedgerRepository implements LedgerRepository {
 
   String _monthKey(DateTime month) => '${month.year}-${month.month}';
 
+  bool _inMonth(DateTime time, DateTime month) =>
+      time.year == month.year && time.month == month.month;
+
   List<LedgerRecord> _generate(DateTime month) {
-    final now = DateTime.now();
+    final now = _clock();
     final isCurrentMonth = month.year == now.year && month.month == now.month;
     final daysInMonth = DateTime(month.year, month.month + 1, 0).day;
     final lastDay = isCurrentMonth ? now.day : daysInMonth;
@@ -427,14 +465,16 @@ class MockLedgerRepository implements LedgerRepository {
         }
         final category = _pickCategory(random);
         final vehicle = _pickVehicle(category, random);
-        records.add(_buildRecord(serial++, vehicle, category, time, random));
+        records.add(
+          _buildRecord(serial++, vehicle, category, time, random, now),
+        );
       }
     }
 
     if (isCurrentMonth) {
       records.addAll(_anchors(now));
     } else {
-      records.addAll(_historicalAnchors(month));
+      records.addAll(_historicalAnchors(month, now));
     }
     _ensureAllCategories(records, month, now, isCurrentMonth);
 
@@ -465,7 +505,14 @@ class MockLedgerRepository implements LedgerRepository {
       }
       final vehicle = _pickVehicle(category, _Lcg(month.month * 17 + 3));
       records.add(
-        _buildRecord(9000 + category.index, vehicle, category, time, _Lcg(7)),
+        _buildRecord(
+          9000 + category.index,
+          vehicle,
+          category,
+          time,
+          _Lcg(7),
+          now,
+        ),
       );
     }
   }
@@ -492,6 +539,7 @@ class MockLedgerRepository implements LedgerRepository {
           time: chargingTime,
           kwh: 38.5,
           unitPriceCents: 133,
+          now: now,
         ),
       );
     }
@@ -515,7 +563,8 @@ class MockLedgerRepository implements LedgerRepository {
             plate: _vehicles.first.plate,
             paymentMethod: '无感支付',
           ),
-          statusText: '${(parkingTime.hour + 3) % 24}:45 离场',
+          statusText:
+              '${_clockLabel(parkingTime.add(const Duration(minutes: 210)))} 离场',
         ),
       );
     }
@@ -527,6 +576,7 @@ class MockLedgerRepository implements LedgerRepository {
           _vehicles.first,
           48000,
           '二保小保养 + CN95空调滤芯更换',
+          now: now,
         ),
       );
     }
@@ -537,13 +587,14 @@ class MockLedgerRepository implements LedgerRepository {
           _vehicles[1],
           24.51,
           816,
+          now: now,
         ),
       );
     }
     return records;
   }
 
-  List<LedgerRecord> _historicalAnchors(DateTime month) {
+  List<LedgerRecord> _historicalAnchors(DateTime month, DateTime now) {
     final random = _Lcg(month.year * 97 + month.month * 13);
     final daysInMonth = DateTime(month.year, month.month + 1, 0).day;
     return [
@@ -552,6 +603,7 @@ class MockLedgerRepository implements LedgerRepository {
         _vehicles[random.next(_vehicles.length)],
         48000,
         '二保小保养 + CN95空调滤芯更换',
+        now: now,
       ),
       _buildCharging(
         id: 'anchor-charging',
@@ -559,6 +611,7 @@ class MockLedgerRepository implements LedgerRepository {
         time: DateTime(month.year, month.month, daysInMonth, 8, 42),
         kwh: 38.5,
         unitPriceCents: 133,
+        now: now,
       ),
     ];
   }
@@ -576,6 +629,7 @@ class MockLedgerRepository implements LedgerRepository {
     ExpenseCategory category,
     DateTime time,
     _Lcg random,
+    DateTime now,
   ) {
     final id =
         'ledger-${time.year}'
@@ -589,6 +643,7 @@ class MockLedgerRepository implements LedgerRepository {
           time: time,
           kwh: 20 + random.next(300) / 10,
           unitPriceCents: 120 + random.next(60),
+          now: now,
         );
       case ExpenseCategory.fuel:
         return _buildFuelAnchor(
@@ -597,6 +652,7 @@ class MockLedgerRepository implements LedgerRepository {
           20 + random.next(300) / 10,
           780 + random.next(80),
           id: id,
+          now: now,
         );
       case ExpenseCategory.maintenance:
         return _buildMaintenanceAnchor(
@@ -605,6 +661,7 @@ class MockLedgerRepository implements LedgerRepository {
           20000 + random.next(40000),
           _maintenanceProjects[random.next(_maintenanceProjects.length)],
           id: id,
+          now: now,
         );
       case ExpenseCategory.parking:
         final duration = 45 + random.next(240);
@@ -692,6 +749,7 @@ class MockLedgerRepository implements LedgerRepository {
     required DateTime time,
     required double kwh,
     required int unitPriceCents,
+    required DateTime now,
   }) {
     return LedgerRecord(
       id: id,
@@ -707,8 +765,8 @@ class MockLedgerRepository implements LedgerRepository {
       badgeKind: LedgerBadgeKind.vehicle,
       metrics: LedgerMetrics(
         kwh: kwh,
-        odometerKm: vehicle.odometerKm - id.hashCode.abs() % 4000,
-        distanceKm: 180 + id.hashCode.abs() % 420,
+        odometerKm: _odometerAt(vehicle, time, now),
+        distanceKm: _dailyRate(vehicle) * (2 + _stableHash(id) % 3),
         paymentMethod: '微信',
       ),
     );
@@ -720,6 +778,7 @@ class MockLedgerRepository implements LedgerRepository {
     double liters,
     int unitPriceCents, {
     String? id,
+    required DateTime now,
   }) {
     return LedgerRecord(
       id: id ?? 'anchor-fuel',
@@ -728,15 +787,17 @@ class MockLedgerRepository implements LedgerRepository {
       vehicleName: vehicle.name,
       powertrain: vehicle.powertrain,
       category: ExpenseCategory.fuel,
-      title: _fuelTitles[time.day % _fuelTitles.length],
+      title: _fuelTitle(vehicle, time),
       amountCents: (liters * unitPriceCents).round(),
       occurredAt: time,
       badgeText: vehicle.shortName,
       badgeKind: LedgerBadgeKind.vehicle,
       metrics: LedgerMetrics(
         liters: liters,
-        odometerKm: vehicle.odometerKm - time.day * 37,
-        distanceKm: 220 + (id ?? time.day.toString()).hashCode.abs() % 480,
+        odometerKm: _odometerAt(vehicle, time, now),
+        distanceKm:
+            _dailyRate(vehicle) *
+            (2 + _stableHash(id ?? time.day.toString()) % 3),
         paymentMethod: '云闪付',
       ),
     );
@@ -748,6 +809,7 @@ class MockLedgerRepository implements LedgerRepository {
     int amountCents,
     String project, {
     String? id,
+    required DateTime now,
   }) {
     return LedgerRecord(
       id: id ?? 'anchor-maintenance',
@@ -762,7 +824,10 @@ class MockLedgerRepository implements LedgerRepository {
       badgeText: vehicle.shortName,
       badgeKind: LedgerBadgeKind.vehicle,
       description: project,
-      metrics: const LedgerMetrics(paymentMethod: '支付宝'),
+      metrics: LedgerMetrics(
+        odometerKm: _odometerAt(vehicle, time, now),
+        paymentMethod: '支付宝',
+      ),
       statusText: '工单已归档',
     );
   }
@@ -844,6 +909,7 @@ class _MockVehicle {
     required this.plate,
     required this.powertrain,
     required this.odometerKm,
+    this.defaultFuelGrade,
   });
 
   final String id;
@@ -852,6 +918,7 @@ class _MockVehicle {
   final String plate;
   final PowertrainType powertrain;
   final int odometerKm;
+  final int? defaultFuelGrade;
 }
 
 const _vehicles = <_MockVehicle>[
@@ -870,6 +937,7 @@ const _vehicles = <_MockVehicle>[
     plate: '粤B·7Q315',
     powertrain: PowertrainType.hev,
     odometerKm: 46210,
+    defaultFuelGrade: 92,
   ),
   _MockVehicle(
     id: 'byd-song-plus-dmi',
@@ -878,6 +946,7 @@ const _vehicles = <_MockVehicle>[
     plate: '粤B·9X521',
     powertrain: PowertrainType.phev,
     odometerKm: 31520,
+    defaultFuelGrade: 92,
   ),
   _MockVehicle(
     id: 'bmw-325li',
@@ -886,8 +955,46 @@ const _vehicles = <_MockVehicle>[
     plate: '粤B·88K32',
     powertrain: PowertrainType.ice,
     odometerKm: 58940,
+    defaultFuelGrade: 95,
   ),
 ];
+
+const _fuelBrands = ['中国石油', '中国石化', '中海油'];
+
+/// 记录发生时的表显里程：以车辆当前里程为锚点，按日均里程倒推，
+/// 保证同一辆车的读数随发生时间单调递增。
+int _odometerAt(_MockVehicle vehicle, DateTime time, DateTime now) {
+  final today = DateTime(now.year, now.month, now.day);
+  final day = DateTime(time.year, time.month, time.day);
+  final daysAgo = today.difference(day).inDays;
+  final reading =
+      vehicle.odometerKm - (daysAgo < 0 ? 0 : daysAgo) * _dailyRate(vehicle);
+  return reading > 0 ? reading : 1;
+}
+
+/// 日均里程：按「当前里程 ÷ 账本窗口天数」估算，保证窗口内读数不为负。
+int _dailyRate(_MockVehicle vehicle) {
+  final rate = vehicle.odometerKm ~/ (MockLedgerRepository.windowMonths * 30);
+  return rate < 8 ? 8 : rate;
+}
+
+String _fuelTitle(_MockVehicle vehicle, DateTime time) {
+  final grade = vehicle.defaultFuelGrade ?? 95;
+  final brand = _fuelBrands[time.day % _fuelBrands.length];
+  return '$brand · $grade#汽油';
+}
+
+String _clockLabel(DateTime time) =>
+    '${time.hour.toString().padLeft(2, '0')}:'
+    '${time.minute.toString().padLeft(2, '0')}';
+
+int _stableHash(String value) {
+  var hash = 17;
+  for (final unit in value.codeUnits) {
+    hash = (hash * 31 + unit) & 0x7FFFFFFF;
+  }
+  return hash;
+}
 
 const _chargingTitles = [
   '特来电快充 · 科技园站',
@@ -895,8 +1002,6 @@ const _chargingTitles = [
   '小桔充电 · 万象城站',
   '星星充电 · 高新园站',
 ];
-
-const _fuelTitles = ['中国石油 · 92#汽油', '中国石化 · 95#汽油', '中海油 · 92#汽油'];
 
 const _maintenanceProjects = ['更换机油机滤', '四轮定位 + 刹车检查', '空调滤芯 + 制动液更换'];
 

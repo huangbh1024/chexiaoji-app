@@ -1,8 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../home/domain/providers.dart';
+import '../../ledger/domain/ledger_invalidation.dart';
 import '../../ledger/domain/providers.dart';
-import '../../report/domain/providers.dart';
 import '../../vehicles/data/vehicle_store_provider.dart';
 import '../data/expense_detail_repository.dart';
 import '../data/mock_expense_detail_repository.dart';
@@ -105,10 +104,6 @@ class ExpenseDetailController extends AsyncNotifier<ExpenseDetail> {
   }
 
   void _invalidateDependents() {
-    ref.invalidate(ledgerRecordsProvider);
-    ref.invalidate(ledgerSummaryProvider);
-    ref.invalidate(homeDashboardProvider);
-    ref.invalidate(recordsProvider);
-    ref.invalidate(monthlyReportProvider);
+    invalidateLedgerDependents(ref);
   }
 }

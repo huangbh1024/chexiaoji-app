@@ -366,6 +366,9 @@ class VehicleLedgerStats {
     required this.energyRecordCount,
     this.firstRecordAt,
     this.latestRecordAt,
+    this.energyKwh = 0,
+    this.fuelLiters = 0,
+    this.distanceKm = 0,
   });
 
   final int totalSpendCents;
@@ -376,11 +379,22 @@ class VehicleLedgerStats {
 
   final DateTime? firstRecordAt;
   final DateTime? latestRecordAt;
+
+  /// 全周期充电量 / 加油量 / 里程，归档卡片据此计算历史平均能耗。
+  final double energyKwh;
+  final double fuelLiters;
+  final int distanceKm;
 }
 
 /// 日期是否同一天。
 bool isSameDay(DateTime a, DateTime b) =>
     a.year == b.year && a.month == b.month && a.day == b.day;
+
+/// 客户端账本可回看 / 可补记的月份数。
+///
+/// Mock 账本、账单月份选择器与记账页的发生时间下限共用这个窗口，
+/// 保证「能记的时间」一定能在账单里翻到、也能被累计统计覆盖。
+const int ledgerHistoryMonths = 36;
 
 /// 当月 1 日 00:00。
 DateTime monthStart(DateTime date) => DateTime(date.year, date.month);

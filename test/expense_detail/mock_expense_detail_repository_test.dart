@@ -32,6 +32,38 @@ void main() {
     expect(detail.vehicleBound, isTrue);
   });
 
+  test('支付方式与记账时写入的 paymentMethod 一致', () async {
+    final record = await firstRecord();
+    final detail = await repository.fetchDetail(record.id);
+
+    expect(detail.payment, isNotNull);
+    expect(detail.payment!.label, record.metrics.paymentMethod);
+  });
+
+  test('用户手动记账不补演示备注与标签', () async {
+    final now = DateTime.now();
+    ledger.insertRecord(
+      LedgerRecord(
+        id: 'rec_manual_test',
+        vehicleId: 'byd-han-ev',
+        vehicleShortName: '汉 EV',
+        vehicleName: '比亚迪 汉 EV',
+        powertrain: PowertrainType.ev,
+        category: ExpenseCategory.charging,
+        title: '测试充电站',
+        amountCents: 3000,
+        occurredAt: now,
+        metrics: const LedgerMetrics(paymentMethod: '微信支付'),
+      ),
+    );
+
+    final detail = await repository.fetchDetail('rec_manual_test');
+
+    expect(detail.note, isNull);
+    expect(detail.tags, isEmpty);
+    expect(detail.payment!.label, '微信支付');
+  });
+
   test('未知 id 抛 ExpenseNotFoundException', () async {
     await expectLater(
       repository.fetchDetail('missing-id'),

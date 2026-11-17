@@ -1,34 +1,16 @@
 import 'dart:math' as math;
 
-import '../../../core/domain/distance.dart';
 import '../../../core/domain/enums.dart';
 import '../../../core/format/formatters.dart';
+import '../../ledger/domain/ledger_analytics.dart';
 import '../../ledger/domain/ledger_models.dart';
 import '../../ledger/domain/ledger_presenter.dart';
 import 'stats_models.dart';
 import 'stats_period.dart';
 
-int totalCentsOf(Iterable<LedgerRecord> records) =>
-    records.fold(0, (sum, record) => sum + record.amountCents);
-
-int energyCentsOf(Iterable<LedgerRecord> records) => records
-    .where(
-      (record) =>
-          record.category == ExpenseCategory.charging ||
-          record.category == ExpenseCategory.fuel,
-    )
-    .fold(0, (sum, record) => sum + record.amountCents);
-
-({int km, DistanceSource source}) distanceOf(List<LedgerRecord> records) {
-  return computeDistance([
-    for (final record in records)
-      DistanceSample(
-        vehicleId: record.vehicleId,
-        odometerKm: record.metrics.odometerKm,
-        distanceKm: record.metrics.distanceKm,
-      ),
-  ]);
-}
+/// 账本口径由 [ledger_analytics] 统一提供；这里保留 re-export，
+/// 统计页与既有测试继续从 `stats_aggregation.dart` 读取同一组函数。
+export '../../ledger/domain/ledger_analytics.dart';
 
 /// 周期汇总：总额、里程、每公里成本与环比。
 StatsSummary buildStatsSummary({
@@ -87,43 +69,6 @@ StatsSummary buildStatsSummary({
   );
 }
 
-({double? percent, TrendDirection trend}) compareTotals(
-  int currentCents,
-  int? previousCents,
-) {
-  if (previousCents == null || previousCents == 0) {
-    return (percent: null, trend: TrendDirection.none);
-  }
-  final percent = (currentCents - previousCents) / previousCents * 100;
-  if (percent.abs() < 0.05) {
-    return (percent: 0, trend: TrendDirection.flat);
-  }
-  return (
-    percent: percent,
-    trend: percent > 0 ? TrendDirection.up : TrendDirection.down,
-  );
-}
-
-/// 周期能耗：电耗、油耗与综合成本。
-({double? kwhPer100km, double? litersPer100km}) consumptionOf(
-  List<LedgerRecord> records,
-  int distanceKm,
-) {
-  if (distanceKm <= 0) {
-    return (kwhPer100km: null, litersPer100km: null);
-  }
-  final kwh = records
-      .where((record) => record.category == ExpenseCategory.charging)
-      .fold(0.0, (sum, record) => sum + (record.metrics.kwh ?? 0));
-  final liters = records
-      .where((record) => record.category == ExpenseCategory.fuel)
-      .fold(0.0, (sum, record) => sum + (record.metrics.liters ?? 0));
-  return (
-    kwhPer100km: kwh > 0 ? kwh / distanceKm * 100 : null,
-    litersPer100km: liters > 0 ? liters / distanceKm * 100 : null,
-  );
-}
-
 /// 相对过去同长度周期均值的评级。
 StatsRating ratingFor(double? current, double? baseline) {
   if (current == null || baseline == null || baseline <= 0) {
@@ -139,119 +84,23 @@ StatsRating ratingFor(double? current, double? baseline) {
   return StatsRating.good;
 }
 
-/// 开销构成：金额降序、最多 6 类、<2% 并入「其他」、百分比最大余数法。
+/// 开销构成：与首页、报表共用 [buildCategoryBreakdown] 的合并规则。
 StatsBreakdown buildStatsBreakdown(List<LedgerRecord> records) {
-  final totalCents = totalCentsOf(records);
-  final sums = <ExpenseCategory, int>{};
-  final counts = <ExpenseCategory, int>{};
-  for (final record in records) {
-    if (record.amountCents <= 0) {
-      continue;
-    }
-    sums.update(
-      record.category,
-      (value) => value + record.amountCents,
-      ifAbsent: () => record.amountCents,
-    );
-    counts.update(record.category, (value) => value + 1, ifAbsent: () => 1);
-  }
-
-  var entries =
-      sums.entries
-          .where((entry) => entry.value > 0)
-          .map(
-            (entry) => _Slice(entry.key, entry.value, counts[entry.key] ?? 0),
-          )
-          .toList()
-        ..sort((a, b) => b.amountCents.compareTo(a.amountCents));
-
-  var otherMerged = false;
-  if (entries.length > 6) {
-    final keep = entries.take(5).toList();
-    final rest = entries.skip(5);
-    keep.add(
-      _Slice(
-        ExpenseCategory.other,
-        rest.fold(0, (sum, slice) => sum + slice.amountCents),
-        rest.fold(0, (sum, slice) => sum + slice.count),
-      ),
-    );
-    entries = keep;
-    otherMerged = true;
-  }
-
-  if (entries.length > 2 && totalCents > 0) {
-    final small = entries
-        .where(
-          (slice) =>
-              slice.category != ExpenseCategory.other &&
-              slice.amountCents * 100 < totalCents * 2,
-        )
-        .toList();
-    if (small.isNotEmpty) {
-      final other = entries.firstWhere(
-        (slice) => slice.category == ExpenseCategory.other,
-        orElse: () => const _Slice(ExpenseCategory.other, 0, 0),
-      );
-      entries = entries.where((slice) => !small.contains(slice)).toList()
-        ..add(
-          _Slice(
-            ExpenseCategory.other,
-            other.amountCents +
-                small.fold(0, (sum, slice) => sum + slice.amountCents),
-            other.count + small.fold(0, (sum, slice) => sum + slice.count),
-          ),
-        )
-        ..sort((a, b) => b.amountCents.compareTo(a.amountCents));
-      otherMerged = true;
-    }
-  }
-
-  final percents = largestRemainder([
-    for (final slice in entries) slice.amountCents,
-  ], totalCents);
-
+  final breakdown = buildCategoryBreakdown(records);
   return StatsBreakdown(
-    totalCents: totalCents,
-    count: records.length,
+    totalCents: breakdown.totalCents,
+    count: breakdown.count,
     categories: [
-      for (var index = 0; index < entries.length; index++)
+      for (final item in breakdown.items)
         StatsCategorySlice(
-          category: entries[index].category,
-          amountCents: entries[index].amountCents,
-          count: entries[index].count,
-          percent: percents[index],
+          category: item.category,
+          amountCents: item.amountCents,
+          count: item.count,
+          percent: item.percent,
         ),
     ],
-    otherMerged: otherMerged,
+    otherMerged: breakdown.otherMerged,
   );
-}
-
-/// 最大余数法：保证百分比合计恰好 100。
-List<int> largestRemainder(List<int> amounts, int total) {
-  if (total <= 0 || amounts.isEmpty) {
-    return List<int>.filled(amounts.length, 0);
-  }
-  final exact = [for (final amount in amounts) amount * 100 / total];
-  final floors = [for (final value in exact) value.floor()];
-  var diff = 100 - floors.fold(0, (sum, value) => sum + value);
-  final order = List<int>.generate(amounts.length, (index) => index)
-    ..sort((a, b) {
-      final byFraction = (exact[b] - floors[b]).compareTo(exact[a] - floors[a]);
-      return byFraction != 0 ? byFraction : a.compareTo(b);
-    });
-  for (var index = 0; index < diff; index++) {
-    floors[order[index % order.length]]++;
-  }
-  return floors;
-}
-
-class _Slice {
-  const _Slice(this.category, this.amountCents, this.count);
-
-  final ExpenseCategory category;
-  final int amountCents;
-  final int count;
 }
 
 /// 趋势窗口的分桶。

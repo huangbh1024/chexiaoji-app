@@ -1,4 +1,5 @@
 import '../../../core/domain/enums.dart';
+import '../../../core/domain/payments.dart';
 import '../../../core/domain/vehicle.dart';
 import '../../../core/format/formatters.dart';
 import '../../home/data/home_repository.dart';
@@ -76,13 +77,14 @@ class MockExpenseEntryRepository implements ExpenseEntryRepository {
       throw const ExpenseEntryValidationException('记录不存在或已被删除');
     }
     final detail = _detailFromRecord(record);
+    final paymentLabel = _paymentLabelOf(record);
     return ExpenseEntryDraft(
       vehicleId: record.vehicleId,
       category: record.category,
       amountCents: record.amountCents.abs(),
       occurredAt: record.occurredAt,
-      paymentChannel: _channelFromLabel(record.statusText),
-      paymentLabel: record.statusText ?? '微信支付',
+      paymentChannel: paymentChannelForLabel(paymentLabel),
+      paymentLabel: paymentLabel,
       place: _placeFromRecord(record, detail),
       odometerKm: record.metrics.odometerKm,
       note: record.note,
@@ -320,26 +322,11 @@ class MockExpenseEntryRepository implements ExpenseEntryRepository {
     };
   }
 
-  PaymentChannel _channelFromLabel(String? label) {
-    if (label == null) {
-      return PaymentChannel.wechat;
-    }
-    if (label.contains('支付宝')) {
-      return PaymentChannel.alipay;
-    }
-    if (label.contains('云闪付')) {
-      return PaymentChannel.unionpay;
-    }
-    if (label.contains('现金')) {
-      return PaymentChannel.cash;
-    }
-    if (label.contains('银行卡')) {
-      return PaymentChannel.card;
-    }
-    if (label.contains('ETC')) {
-      return PaymentChannel.etc;
-    }
-    return PaymentChannel.wechat;
+  /// 支付方式优先取记录里的 `paymentMethod`；`statusText` 是右侧辅助文案
+  /// （如「19:45 离场」「工单已归档」），不能当作支付方式。
+  String _paymentLabelOf(LedgerRecord record) {
+    final method = _trim(record.metrics.paymentMethod);
+    return method ?? defaultPaymentLabelFor(record.category);
   }
 
   String? _trim(String? value) {

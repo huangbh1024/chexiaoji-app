@@ -1,5 +1,6 @@
 import '../../home/data/home_repository.dart';
 import '../../ledger/data/ledger_repository.dart';
+import '../../ledger/data/mock_ledger_repository.dart';
 import '../../ledger/domain/ledger_models.dart';
 import '../domain/garage_aggregation.dart';
 import '../domain/profile_models.dart';
@@ -123,6 +124,20 @@ class MockProfileRepository implements ProfileRepository {
     DateTime month,
     String? vehicleId,
   ) async {
+    final start = DateTime(month.year, month.month);
+    final end = DateTime(
+      month.year,
+      month.month + 1,
+    ).subtract(const Duration(milliseconds: 1));
+    final mock = ledger is MockLedgerRepository
+        ? ledger as MockLedgerRepository
+        : null;
+    if (mock != null) {
+      return mock
+          .recordsBetween(start, end)
+          .where((record) => vehicleId == null || record.vehicleId == vehicleId)
+          .toList(growable: false);
+    }
     final items = <LedgerRecord>[];
     String? cursor;
     for (var page = 0; page < 20; page++) {

@@ -1,4 +1,5 @@
 import '../../ledger/data/mock_ledger_repository.dart';
+import '../../../core/domain/payments.dart';
 import '../../ledger/domain/ledger_models.dart';
 import '../domain/expense_detail_models.dart';
 import 'expense_detail_repository.dart';
@@ -68,11 +69,17 @@ class MockExpenseDetailRepository implements ExpenseDetailRepository {
   }
 
   ExpenseDetail _build(LedgerRecord record) {
-    final payment = _paymentFor(record.category);
-    final tags = _tagOverrides[record.id] ?? _defaultTags(record.category);
+    final payment = _paymentFor(record);
+    // 用户自己记的账不补默认备注 / 标签：只有演示流水才带示例内容，
+    // 避免把「没写过的备注」当成用户数据展示。
+    final isDemoRecord = !record.id.startsWith('rec_manual_');
+    final tags =
+        _tagOverrides[record.id] ??
+        (isDemoRecord ? _defaultTags(record.category) : const <String>[]);
     final note = _noteOverrides.containsKey(record.id)
         ? _noteOverrides[record.id]
-        : (record.note ?? _defaultNote(record.category));
+        : (record.note ??
+              (isDemoRecord ? _defaultNote(record.category) : null));
     return ExpenseDetail(
       record: record,
       status: record.amountCents < 0
@@ -88,37 +95,14 @@ class MockExpenseDetailRepository implements ExpenseDetailRepository {
     );
   }
 
-  ExpensePayment _paymentFor(ExpenseCategory category) {
-    return switch (category) {
-      ExpenseCategory.charging => const ExpensePayment(
-        channel: PaymentChannel.wechat,
-        label: '微信支付',
-      ),
-      ExpenseCategory.fuel => const ExpensePayment(
-        channel: PaymentChannel.unionpay,
-        label: '云闪付加油卡代扣',
-      ),
-      ExpenseCategory.maintenance => const ExpensePayment(
-        channel: PaymentChannel.alipay,
-        label: '支付宝',
-      ),
-      ExpenseCategory.parking => const ExpensePayment(
-        channel: PaymentChannel.other,
-        label: '无感免密支付',
-      ),
-      ExpenseCategory.toll => const ExpensePayment(
-        channel: PaymentChannel.etc,
-        label: '粤通卡 ETC 自动划扣',
-      ),
-      ExpenseCategory.carWash => const ExpensePayment(
-        channel: PaymentChannel.wechat,
-        label: '微信支付（次卡划扣）',
-      ),
-      ExpenseCategory.other => const ExpensePayment(
-        channel: PaymentChannel.alipay,
-        label: '支付宝',
-      ),
-    };
+  /// 支付方式取记录里的 `paymentMethod`，与记账时选择保持一致；
+  /// 旧数据缺失时才回退到分类默认值。
+  ExpensePayment _paymentFor(LedgerRecord record) {
+    final method = record.metrics.paymentMethod?.trim();
+    final label = (method == null || method.isEmpty)
+        ? defaultPaymentLabelFor(record.category)
+        : method;
+    return ExpensePayment(channel: paymentChannelForLabel(label), label: label);
   }
 
   List<String> _defaultTags(ExpenseCategory category) {

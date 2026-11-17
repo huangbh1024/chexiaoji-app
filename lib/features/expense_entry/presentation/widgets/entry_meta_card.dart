@@ -7,6 +7,7 @@ import '../../../../core/domain/enums.dart';
 import '../../../../core/format/formatters.dart';
 import '../../../../core/presentation/payment_style.dart';
 import '../../../../core/widgets/app_card.dart';
+import '../../../ledger/domain/ledger_models.dart';
 import '../../domain/expense_entry_models.dart';
 import '../../domain/providers.dart';
 import '../expense_entry_style.dart';
@@ -223,10 +224,14 @@ class _TimeSheet extends StatelessWidget {
             height: 48,
             child: FilledButton.tonal(
               onPressed: () async {
+                final firstDate = DateTime(
+                  now.year,
+                  now.month - (ledgerHistoryMonths - 1),
+                );
                 final date = await showDatePicker(
                   context: context,
-                  initialDate: now,
-                  firstDate: DateTime(2000),
+                  initialDate: now.isBefore(firstDate) ? firstDate : now,
+                  firstDate: firstDate,
                   lastDate: DateTime(now.year, now.month, now.day),
                   helpText: '选择发生日期',
                 );

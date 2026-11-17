@@ -4,10 +4,8 @@ import 'package:material_ui/material_ui.dart';
 import '../../../core/domain/enums.dart';
 import '../../../core/domain/vehicle.dart';
 import '../../home/domain/providers.dart';
+import '../../ledger/domain/ledger_invalidation.dart';
 import '../../ledger/domain/providers.dart';
-import '../../profile/domain/providers.dart';
-import '../../report/domain/providers.dart';
-import '../../stats/domain/providers.dart';
 import '../data/expense_entry_repository.dart';
 import '../data/mock_expense_entry_repository.dart';
 import '../data/receipt_picker.dart';
@@ -739,19 +737,7 @@ class ExpenseEntryController extends Notifier<ExpenseEntryState> {
   }
 
   void _invalidateDependents() {
-    ref.invalidate(ledgerRecordsProvider);
-    ref.invalidate(ledgerSummaryProvider);
-    ref.invalidate(homeDashboardProvider);
-    ref.invalidate(breakdownProvider);
-    ref.invalidate(recordsProvider);
-    ref.invalidate(trendProvider);
-    ref.invalidate(statsOverviewProvider);
-    ref.invalidate(statsBreakdownProvider);
-    ref.invalidate(statsRecentProvider);
-    ref.invalidate(statsTrendProvider);
-    ref.invalidate(monthlyReportProvider);
-    ref.invalidate(profileOverviewProvider);
-    ref.invalidate(vehiclesProvider);
+    invalidateLedgerDependents(ref);
   }
 
   void _updateDirty() {

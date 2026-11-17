@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import '../../../core/domain/enums.dart';
 import '../../../core/domain/vehicle.dart';
+import '../../ledger/domain/ledger_analytics.dart';
 import '../../ledger/domain/ledger_models.dart';
 import 'report_models.dart';
 
@@ -48,7 +49,7 @@ MonthlyReport buildMonthlyReport({
     }
   }
 
-  final momPercent = momPercentFor(totalCents, previousTotalCents);
+  final change = compareTotals(totalCents, previousTotalCents);
 
   return MonthlyReport(
     scope: ReportScope(month: month, vehicleId: scope.vehicleId),
@@ -73,8 +74,8 @@ MonthlyReport buildMonthlyReport({
     fuelLiters: fuelLiters,
     kwhPer100km: distance.km <= 0 ? null : energyKwh / distance.km * 100,
     litersPer100km: distance.km <= 0 ? null : fuelLiters / distance.km * 100,
-    momPercent: momPercent,
-    momTrend: trendFor(totalCents, previousTotalCents),
+    momPercent: change.percent,
+    momTrend: change.trend,
     vehicles: [
       for (final vehicle in scopedVehicles)
         ReportVehicleBrief(
@@ -281,26 +282,6 @@ ReportCategoryKey reportCategoryKeyFor(ExpenseCategory category) =>
       ExpenseCategory.carWash ||
       ExpenseCategory.other => ReportCategoryKey.carWashOther,
     };
-
-double? momPercentFor(int totalCents, int? previousTotalCents) {
-  if (previousTotalCents == null || previousTotalCents == 0) {
-    return null;
-  }
-  return (totalCents - previousTotalCents) / previousTotalCents * 100;
-}
-
-TrendDirection trendFor(int totalCents, int? previousTotalCents) {
-  if (previousTotalCents == null || previousTotalCents == 0) {
-    return TrendDirection.none;
-  }
-  if (totalCents > previousTotalCents) {
-    return TrendDirection.up;
-  }
-  if (totalCents < previousTotalCents) {
-    return TrendDirection.down;
-  }
-  return TrendDirection.flat;
-}
 
 /// 报表单号：`RP-YYYYMM-XXXX`，同一范围长期稳定。
 ///
