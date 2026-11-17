@@ -103,7 +103,13 @@ jobs:
 
       - name: Build release APK (arm64)
         if: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch' }}
-        run: flutter build apk --release --target-platform android-arm64
+        env:
+          # 在 Settings → Secrets and variables → Actions → Variables 配置；
+          # 未配置时 App 内隐藏「检查更新」入口。
+          UPDATE_MANIFEST_URL: ${{ vars.UPDATE_MANIFEST_URL }}
+        run: |
+          flutter build apk --release --target-platform android-arm64 \
+            --dart-define=UPDATE_MANIFEST_URL="$UPDATE_MANIFEST_URL"
 
       - name: Upload APK
         if: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch' }}

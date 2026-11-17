@@ -1,11 +1,29 @@
+import java.io.FileInputStream
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+// 正式签名：CI 在配置了 ANDROID_KEYSTORE_* secrets 时生成 android/key.properties
+// 和 android/app/upload-keystore.jks；未配置时回退 debug 签名。
+val keystoreProperties = Properties()
+val keystorePropertiesFile = rootProject.file("key.properties")
+if (keystorePropertiesFile.exists()) {
+    FileInputStream(keystorePropertiesFile).use { keystoreProperties.load(it) }
+}
+
+// 应用对外标识。正式域名确定后改 android/gradle.properties 的
+// chexiaojiApplicationId，或用 -PchexiaojiApplicationId=... 覆盖；
+// namespace / Kotlin 包名是内部代码标识，可以保持不变。
+val appApplicationId = (findProperty("chexiaojiApplicationId") as String?)
+    ?.takeIf { it.isNotBlank() }
+    ?: "top.huangbh.chexiaoji_app"
+
 android {
-    namespace = "cn.taqu.chexiaoji_app"
+    namespace = "top.huangbh.chexiaoji_app"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -16,7 +34,7 @@ android {
 
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "cn.taqu.chexiaoji_app"
+        applicationId = appApplicationId
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
@@ -29,11 +47,26 @@ android {
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        create("release") {
+            if (keystorePropertiesFile.exists()) {
+                keyAlias = keystoreProperties["keyAlias"] as String
+                keyPassword = keystoreProperties["keyPassword"] as String
+                storeFile = file(keystoreProperties["storeFile"] as String)
+                storePassword = keystoreProperties["storePassword"] as String
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            // 全量 APK 更新要求新旧包使用同一签名；未配置 secrets 时 debug 签名
+            // 只适合内测，无法覆盖安装其他 CI 产出的包。
+            signingConfig = if (keystorePropertiesFile.exists()) {
+                signingConfigs.getByName("release")
+            } else {
+                signingConfigs.getByName("debug")
+            }
         }
     }
 }
@@ -46,4 +79,9 @@ kotlin {
 
 flutter {
     source = "../.."
+}
+
+dependencies {
+    // FileProvider：安装 APK 时把缓存文件以 content:// 交给系统安装器。
+    implementation("androidx.core:core:1.15.0")
 }

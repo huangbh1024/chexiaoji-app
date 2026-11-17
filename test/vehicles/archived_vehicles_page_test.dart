@@ -1,4 +1,5 @@
 import 'package:chexiaoji_app/app/theme/app_theme.dart';
+import 'package:chexiaoji_app/core/format/formatters.dart';
 import 'package:chexiaoji_app/features/home/data/mock_home_repository.dart';
 import 'package:chexiaoji_app/features/ledger/data/mock_ledger_repository.dart';
 import 'package:chexiaoji_app/features/vehicles/data/mock_vehicle_repository.dart';
@@ -51,8 +52,9 @@ Future<VehicleStore> _pumpPage(
 
 void main() {
   testWidgets('渲染封存列表、三指标与归档日期', (tester) async {
-    final store = seededVehicleStore(now: _now);
-    store.archive('toyota-camry-hev', at: _now);
+    final now = DateTime.now();
+    final store = seededVehicleStore(now: now);
+    store.archive('toyota-camry-hev', at: now);
     await _pumpPage(tester, store: store);
 
     expect(find.text('已归档车辆'), findsOneWidget);
@@ -62,7 +64,10 @@ void main() {
     expect(find.text('累计记账花费'), findsOneWidget);
     expect(find.text('历史综合油耗'), findsOneWidget);
     expect(find.text('今日封存'), findsOneWidget);
-    expect(find.textContaining('归档于 2026年11月15日'), findsOneWidget);
+    expect(
+      find.textContaining('归档于 ${formatArchiveDate(now)}'),
+      findsOneWidget,
+    );
     expect(find.textContaining('云端'), findsNothing);
   });
 

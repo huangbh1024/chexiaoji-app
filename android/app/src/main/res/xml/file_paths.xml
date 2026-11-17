@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <!-- path_provider 的 getTemporaryDirectory() 位于应用 cacheDir。 -->
+    <cache-path name="app_update_cache" path="app_update/" />
+    <external-cache-path name="app_update_external_cache" path="app_update/" />
+</paths>

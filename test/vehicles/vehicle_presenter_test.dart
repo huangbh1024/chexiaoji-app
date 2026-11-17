@@ -117,7 +117,7 @@ void main() {
         _managed(
           powertrain: PowertrainType.ice,
           consumption: _consumption(primary: 6.8, primaryUnit: 'L/百公里'),
-          insuranceExpiry: _now.add(const Duration(days: 48)),
+          insuranceExpiry: DateTime.now().add(const Duration(days: 48)),
         ),
       );
       expect(metrics[1].label, '综合油耗');
@@ -130,7 +130,7 @@ void main() {
       final metric = VehiclePresenter.metricsOf(
         _managed(
           powertrain: PowertrainType.ice,
-          insuranceExpiry: _now.add(const Duration(days: 12)),
+          insuranceExpiry: DateTime.now().add(const Duration(days: 12)),
         ),
       )[2];
       expect(metric.tone, VehicleMetricTone.danger);
