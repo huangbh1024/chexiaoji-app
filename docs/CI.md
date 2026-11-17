@@ -39,7 +39,9 @@ paths-ignore:
 1. Java 21 + Flutter 3.50.0 stable
 2. 安装 Android SDK `platforms;android-36`、`build-tools;36.0.0`
 3. `flutter pub get` → `flutter analyze` → `flutter test`（有测试时）
-4. 仅 main / 手动触发：`flutter build apk --release --target-platform android-arm64`
+4. 仅 main / 手动触发：`flutter build apk --release --target-platform android-arm64`；
+   若配置了仓库变量 `UPDATE_MANIFEST_URL`，同时通过
+   `--dart-define=UPDATE_MANIFEST_URL=...` 注入全量更新清单地址
 5. 仅 main / 手动触发：上传 APK Artifact，保留 7 天
 
 下载：Actions → 某次运行 → 页面底部 **Artifacts**。
@@ -61,8 +63,12 @@ paths-ignore:
 | `ANDROID_KEY_ALIAS` | 例如 `upload` |
 | `ANDROID_KEY_PASSWORD` | key 密码 |
 
-然后在 `android/app/build.gradle.kts` 配置 `signingConfigs.release`，读取
+`android/app/build.gradle.kts` 已实现 `signingConfigs.release`，读取
 `android/key.properties`。未配置 secrets 时工作流继续使用 debug 签名，仅适合内测。
+
+> **全量 APK 更新必须使用固定 release 签名**：不同 CI 运行生成的 debug
+> keystore 不同，新旧包签名不一致会导致系统拒绝覆盖安装。
+> 详见 [technical/app-update.md](technical/app-update.md)。
 
 ## iOS
 
